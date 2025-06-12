@@ -13,7 +13,7 @@
 
 #define PRINT(expr) #expr
 
-#define SCALE 2
+#define SCALE 3
 
 class SNES
 {
