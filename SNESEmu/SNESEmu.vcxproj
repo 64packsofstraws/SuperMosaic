@@ -70,10 +70,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\Aaron Straw\OneDrive\Documents\Libs\SDL3-3.2.8\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Aaron Straw\OneDrive\Documents\Libs\SDL3-3.2.8\lib\x64;$(LibraryPath)</LibraryPath>
-  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -108,12 +104,10 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>SDL3.lib;SDL3_test.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -133,23 +127,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Bus.cpp" />
-    <ClCompile Include="Cartridge.cpp" />
     <ClCompile Include="CPU.cpp" />
-    <ClCompile Include="CPU_AddrModes.cpp" />
-    <ClCompile Include="CPU_Instructions.cpp" />
-    <ClCompile Include="DMA.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="PPU.cpp" />
-    <ClCompile Include="SNES.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Bus.h" />
-    <ClInclude Include="Cartridge.h" />
     <ClInclude Include="CPU.h" />
-    <ClInclude Include="DMA.h" />
-    <ClInclude Include="PPU.h" />
-    <ClInclude Include="SNES.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
