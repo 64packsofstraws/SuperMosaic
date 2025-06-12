@@ -1,0 +1,30 @@
+#pragma once
+#include <cstdint>
+#include <vector>
+
+class Cartridge
+{
+protected:
+	std::vector<uint8_t> rom;
+	std::vector<uint8_t> ram;
+	bool rom_speed;
+
+public:
+
+	Cartridge(std::vector<uint8_t> rom, std::vector<uint8_t> ram, bool rom_speed);
+
+	bool get_rom_speed() const;
+
+	virtual bool in_range(uint32_t addr) = 0;
+	virtual uint8_t read(uint32_t addr) = 0;
+};
+
+class LoROM : public Cartridge
+{
+public:
+	LoROM(std::vector<uint8_t> rom, std::vector<uint8_t> ram, bool rom_speed);
+
+	bool in_range(uint32_t addr);
+	uint8_t read(uint32_t addr);
+};
+
