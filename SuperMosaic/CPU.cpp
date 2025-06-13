@@ -390,7 +390,6 @@ void CPU::nmi()
 	PC = read16(0xFFEA);
 
 	nmi_pending = false;
-	printf("nmi interrupt\n");
 }
 
 void CPU::reset()

@@ -16,7 +16,7 @@ class PPU
 	int x;
 	int y;
 
-	struct {
+	struct Background {
 		uint16_t tilemap_base;
 		uint16_t tileset_base;
 		uint8_t tilemap_sizex;
@@ -106,14 +106,16 @@ class PPU
 
 	SNES* snes;
 
+	std::vector<Background> get_priority_m0();
+	void render_bgpixel_m0(std::vector<Background> vec);
+
 	bool overscan_cond() const;
 	SDL_Color to_rgb888(uint16_t rgb);
 public:
 	SDL_Window* win;
 	SDL_Renderer* ren;
 	SDL_Texture* tex;
-
-	bool frame_ready;
+	Uint64 elapsed_tick;
 
 	PPU(SNES* snes);
 	~PPU();

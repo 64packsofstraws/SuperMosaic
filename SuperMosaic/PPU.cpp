@@ -1,6 +1,71 @@
 #include "PPU.h"
 #include "SNES.h"
 
+std::vector<PPU::Background> PPU::get_priority_m0()
+{
+	std::vector<Background> priority_vec;
+
+	for (int i = 0; i < 4; i++) {
+		if (regs.tm & (1 << i))
+			priority_vec.push_back(bg[i]);
+	}
+	if (priority_vec.size() < 2) return priority_vec;
+
+	/*
+	for (int i = 0; i <= priority_vec.size() / 2; i += 2) {
+		uint16_t tmap_base = priority_vec[i].tilemap_base & 0x7FFF;
+		uint16_t tmap_base_next = priority_vec[i + 1].tilemap_base & 0x7FFF;
+
+		uint16_t tmap_idx = tmap_base + ((y / 8) * priority_vec[i].tilemap_sizex + (x / 8));
+		uint16_t tmap_idx_next = tmap_base_next + ((y / 8) * priority_vec[i + 1].tilemap_sizex + (x / 8));
+
+		bool priority = (vram[tmap_idx] >> 13) & 1;
+		bool priority_next = (vram[tmap_idx_next] >> 13) & 1;
+
+		if (priority < priority_next)
+			std::swap(priority_vec[i], priority_vec[i + 1]);
+	}
+	*/
+
+	return priority_vec;
+}
+
+void PPU::render_bgpixel_m0(std::vector<Background> vec)
+{
+	if (vec.size() == 0) {
+		framebuf[idx(x, y)] = { 0, 0, 0, 255 };
+		x++;
+		return;
+	}
+
+	for (int i = 0; i < vec.size(); i++) {
+		uint16_t tmap_base = vec[i].tilemap_base & 0x7FFF;
+		uint16_t tset_base = vec[i].tileset_base & 0x7FFF;
+
+		uint16_t tmap_idx = tmap_base + ((y / 8) * vec[i].tilemap_sizex + (x / 8));
+
+		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
+
+		uint16_t plane_idx = tset_idx * 8 + (y % 8);
+		uint8_t p0 = vram[plane_idx] & 0xFF;
+		uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
+
+		bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
+		bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
+
+		uint8_t pal_idx = (b1 << 1) | b0;
+
+		if (pal_idx == 0 && i != vec.size() - 1) continue;
+
+		uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
+		uint16_t entry = 0;
+
+		framebuf[idx(x, y)] = {0, 0, 0, 255};
+		x++;
+		break;
+	}
+}
+
 bool PPU::overscan_cond() const
 {
 	// this cond is fucking stupid
@@ -13,9 +78,9 @@ SDL_Color PPU::to_rgb888(uint16_t rgb)
 	uint8_t g = (rgb >> 5) & 0x3F;
 	uint8_t b = (rgb >> 10) & 0x3F;
 
-	r = (r << 5) | (r >> 2);
-	g = (g << 5) | (g >> 2);
-	b = (b << 5) | (b >> 2);
+	r = (r << 3) | (r >> 2);
+	g = (g << 3) | (g >> 2);
+	b = (b << 3) | (b >> 2);
 
 	return { r, g, b, 255 };
 }
@@ -32,13 +97,13 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	vblank_scanline = 224;
 	vblank_flag = nmi_enable = false;
 	dot = scanline = mclock_dot = 0;
-	frame_ready = false;
 
 	x = y = 0;
 #ifndef DEBUG
 	SDL_Init(SDL_INIT_VIDEO);
 
 	SDL_CreateWindowAndRenderer("SuperMosaic", 256 * SCALE, 224 * SCALE, 0, &win, &ren);
+	SDL_SetRenderVSync(ren, 1);
 
 	tex = SDL_CreateTexture(
 		ren,
@@ -47,6 +112,8 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 		256 * SCALE,
 		224 * SCALE
 	);
+
+	elapsed_tick = SDL_GetTicks();
 #endif
 }
 
@@ -593,7 +660,8 @@ void PPU::tick(unsigned cycles)
 		x = 0;
 
 		if (scanline == vblank_scanline) {
-			vblank_flag = frame_ready = true;
+			vblank_flag = true;
+			render();
 		}
 
 		if (scanline > 261) {
@@ -605,28 +673,41 @@ void PPU::tick(unsigned cycles)
 	}
 
 	if (scanline >= 1 && scanline <= 224 && dot >= 22 && x < 256) {
-		// render stuff
 		for (int i = 0; i < cycles && x < 256; i++) {
-			uint16_t tmap_base = bg[0].tilemap_base & 0x7FFF;
-			uint16_t tset_base = bg[0].tileset_base & 0x7FFF;
+			if (!(regs.tm & 0xF)) {
+				framebuf[idx(x, y)] = { 0, 0, 0, 255 };
+				x++;
+				break;
+			}
 
-			uint16_t tmap_idx = tmap_base + ((y / 8) * bg[0].tilemap_sizex + (x / 8));
-			uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
+			for (int j = 3; j >= 0; j--) {
+				if (!(regs.tm & (1 << j))) continue;
 
-			uint16_t plane_idx = tset_idx * 8 + (y % 8);
-			uint8_t p0 = vram[plane_idx] & 0xFF;
-			uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
+				uint16_t tmap_base = bg[j].tilemap_base & 0x7FFF;
+				uint16_t tset_base = bg[j].tileset_base & 0x7FFF;
 
-			bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
-			bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
+				uint16_t tmap_idx = (tmap_base + ((y / 8) * bg[j].tilemap_sizex + (x / 8))) & 0x7FFF;
 
-			uint8_t pal_idx = (b1 << 1) | b0;
+				uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-			uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
-			uint16_t entry = cgram[4 * tmap_pal + pal_idx];
+				uint16_t plane_idx = tset_idx * 8 + (y % 8);
+				uint8_t p0 = vram[plane_idx] & 0xFF;
+				uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
 
-			framebuf[idx(x, y)] = to_rgb888(entry);
-			x++;
+				bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
+				bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
+
+				uint8_t pal_idx = (b1 << 1) | b0;
+
+				if (!pal_idx && j != 0) continue;
+
+				uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
+				uint16_t entry = cgram[4 * (j + 1) * tmap_pal + pal_idx];
+
+				framebuf[idx(x, y)] = to_rgb888(entry);
+				x++;
+				break;
+			}
 		}
 	}
 	else if (scanline >= vblank_scanline && scanline <= 261) {
@@ -660,5 +741,12 @@ void PPU::render()
 	SDL_RenderTexture(ren, tex, nullptr, nullptr);
 
 	SDL_RenderPresent(ren);
-	frame_ready = false;
+
+	elapsed_tick = SDL_GetTicks() - elapsed_tick;
+
+	if (elapsed_tick < 16) {
+		SDL_Delay(16 - elapsed_tick);
+
+		elapsed_tick = SDL_GetTicks();
+	}
 }

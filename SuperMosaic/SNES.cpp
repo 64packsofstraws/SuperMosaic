@@ -81,7 +81,6 @@ void SNES::run()
 {
 	bool running = true;
 	SDL_Event e;
-	Uint64 tick = SDL_GetTicks();
 
 	while (running) {
 		while (SDL_PollEvent(&e)) {
@@ -93,17 +92,5 @@ void SNES::run()
 		}
 
 		cpu.step();
-
-		if (ppu.frame_ready) {
-			ppu.render();
-
-			Uint64 elapsed = SDL_GetTicks() - tick;
-
-			if (elapsed < 16) {
-				SDL_Delay(16 - elapsed);
-
-				tick = SDL_GetTicks();
-			}
-		}
 	}
 }
