@@ -83,10 +83,6 @@ void SNES::run()
 	SDL_Event e;
 	Uint64 tick = SDL_GetTicks();
 
-#ifdef DEBUG
-	cpu.step();
-#else
-
 	while (running) {
 		while (SDL_PollEvent(&e)) {
 			switch (e.type) {
@@ -96,8 +92,6 @@ void SNES::run()
 			}
 		}
 
-		//while (cpu.PC != 0) cpu.step();
-		//printf("%04X\n", cpu.PC);
 		cpu.step();
 
 		if (ppu.frame_ready) {
@@ -112,5 +106,4 @@ void SNES::run()
 			}
 		}
 	}
-#endif
 }

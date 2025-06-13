@@ -9,11 +9,10 @@
 #include "Bus.h"
 #include "PPU.h"
 #include "DMA.h"
-#define DEBUG
 
 #define PRINT(expr) #expr
 
-#define SCALE 3
+#define SCALE 2
 
 class SNES
 {

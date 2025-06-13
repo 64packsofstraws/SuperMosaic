@@ -1,7 +1,7 @@
 #include "CPU.h"
 #include "SNES.h"
 
-CPU::CPU(SNES* snes) : snes(snes), memory(0x1000000, 0)
+CPU::CPU(SNES* snes) : snes(snes)
 {
 	ins_table[0x69] = { &CPU::ADC, &CPU::IMM, 2 };
 	ins_table[0x6D] = { &CPU::ADC, &CPU::ABS, 4 };

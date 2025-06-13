@@ -610,10 +610,10 @@ void PPU::tick(unsigned cycles)
 			uint16_t tmap_base = bg[0].tilemap_base & 0x7FFF;
 			uint16_t tset_base = bg[0].tileset_base & 0x7FFF;
 
-			uint16_t tmap_idx = tmap_base + (y / 8) * bg[0].tilemap_sizex + (x / 8);
+			uint16_t tmap_idx = tmap_base + ((y / 8) * bg[0].tilemap_sizex + (x / 8));
 			uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-			uint8_t plane_idx = tset_idx * 8 + (y % 8);
+			uint16_t plane_idx = tset_idx * 8 + (y % 8);
 			uint8_t p0 = vram[plane_idx] & 0xFF;
 			uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
 
