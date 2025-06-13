@@ -173,7 +173,8 @@ void CPU::ABS()
 
 void CPU::ABSL()
 {
-	uint8_t bank = read8(FULL_PC + 2);
+	uint32_t bank_addr = (FULL_PC & 0xFF0000) | ((PC + 2) & 0xFFFF);
+	uint8_t bank = read8(bank_addr);
 	addr = (bank << 16) | read16(FULL_PC);
 	PC += 3;
 }
@@ -225,7 +226,7 @@ void CPU::ABSI()
 void CPU::ABSIL()
 {	
 	uint16_t fetched_addr = read16(FULL_PC);
-	uint8_t bank = read16((fetched_addr + 2) & 0xFFFF);
+	uint8_t bank = read8((fetched_addr + 2) & 0xFFFF);
 
 	addr = (bank << 16) | read16(fetched_addr);
 
@@ -235,7 +236,7 @@ void CPU::ABSIL()
 void CPU::ABSIX()
 {
 	uint16_t m = GET_X() ? X & 0xFF : X;
-	uint32_t fetched_addr = (((PBR << 16) | read16(FULL_PC)) + m) & 0xFFFFFF;
+	uint32_t fetched_addr = ((PBR << 16) | (read16(FULL_PC)) + m & 0xFFFF);
 
 	addr = (PBR << 16) | read16(fetched_addr);
 

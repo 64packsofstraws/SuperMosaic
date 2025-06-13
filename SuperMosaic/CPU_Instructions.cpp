@@ -1183,19 +1183,20 @@ uint8_t CPU::SBC() {
 	if (GET_M()) {
 		uint8_t a8 = A & 0xFF;
 		uint16_t sum;
+		uint8_t data = val & 0xFF;
 
 		if (GET_D()) {
-			sum = (A & 0xF) + (val & 0x0F) + GET_C();
+			sum = (A & 0xF) + (data & 0xF) + GET_C();
 			if(sum <= 0xF) sum -= 0x06;
 
 			SET_C(sum > 0xF);
-			sum = (A & 0xF0) + (val & 0xF0) + (GET_C() << 4) + (sum & 0xF);
+			sum = (A & 0xF0) + (data & 0xF0) + (GET_C() << 4) + (sum & 0xF);
 		}
 		else {
-			sum = a8 + ~val + GET_C();
+			sum = a8 + data + GET_C();
 		}
 
-		SET_V(((a8 ^ sum) & (val ^ sum) & 0x80));
+		SET_V((~(a8 ^ data)) & (a8 ^ sum) & 0x80);
 
 		if (GET_D() && sum <= 0xFF) sum -= 0x60;
 
@@ -1230,7 +1231,7 @@ uint8_t CPU::SBC() {
 			sum = A + val + GET_C();
 		}
 
-		SET_V(((A ^ sum) & (val ^ sum) & 0x8000));
+		SET_V((~(A ^ val)) & (A ^ sum) & 0x8000);
 
 		if (GET_D() && sum <= 0xFFFF) sum -= 0x6000;
 

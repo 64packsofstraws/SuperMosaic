@@ -133,7 +133,7 @@ CPU::CPU(SNES* snes) : snes(snes), memory(0x1000000, 0)
 	ins_table[0xDC] = { &CPU::JML, &CPU::ABSIL, 6 };
 
 	ins_table[0x20] = { &CPU::JSR, &CPU::ABS, 6 };
-	ins_table[0x22] = { &CPU::JSR, &CPU::ABSL, 8 };
+	ins_table[0x22] = { &CPU::JSRL, &CPU::ABSL, 8 };
 	ins_table[0xFC] = { &CPU::JSR, &CPU::ABSIX, 8 };
 
 	ins_table[0xA9] = { &CPU::LDA, &CPU::IMM, 2 };
@@ -318,7 +318,7 @@ void CPU::step()
 {
 #ifdef DEBUG
 	printf("Loading json test...\n");
-	std::ifstream f("C:\\Users\\Aaron Straw\\Downloads\\65816-main\\v1\\e9.n.json");
+	std::ifstream f("C:\\Users\\Aaron Straw\\Downloads\\65816-main\\v1\\77.n.json");
 	auto js = json::parse(f);
 
 	for (int i = 0; i < 10000; i++) {
@@ -327,7 +327,6 @@ void CPU::step()
 		X = js[i]["initial"]["x"];
 		Y = js[i]["initial"]["y"];
 		status = js[i]["initial"]["p"];
-		//E = static_cast<bool>(js[i]["initial"]["e"]);
 
 		PBR = js[i]["initial"]["pbr"];
 		PC = js[i]["initial"]["pc"];
@@ -427,12 +426,14 @@ void CPU::write8(uint32_t addr, uint8_t val)
 
 uint16_t CPU::read16(uint32_t addr)
 {
-	return (read8(addr + 1) << 8) | read8(addr);
+	uint32_t next_addr = (addr & 0xFF0000) | ((addr + 1) & 0xFFFF);
+	return (read8(next_addr) << 8) | read8(addr);
 }
 
 void CPU::write16(uint32_t addr, uint16_t val)
 {
-	write8(addr + 1, val >> 8);
+	uint32_t next_addr = (addr & 0xFF0000) | ((addr + 1) & 0xFFFF);
+	write8(next_addr, val >> 8);
 	write8(addr, val & 0xFF);
 }
 

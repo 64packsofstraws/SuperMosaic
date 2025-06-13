@@ -57,7 +57,7 @@ class CPU
 
 	std::array<InsEntry, 256> ins_table;
 
-	std::vector<uint8_t> memory;
+	//std::vector<uint8_t> memory;
 
 	SNES* snes;
 
