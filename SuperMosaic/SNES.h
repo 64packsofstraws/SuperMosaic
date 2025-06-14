@@ -12,8 +12,6 @@
 
 #define PRINT(expr) #expr
 
-#define SCALE 2
-
 class SNES
 {
 	struct Header {

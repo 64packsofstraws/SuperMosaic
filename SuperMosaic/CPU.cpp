@@ -191,9 +191,9 @@ CPU::CPU(SNES* snes) : snes(snes)
 	ins_table[0x03] = { &CPU::ORA, &CPU::SR, 4 };
 	ins_table[0x13] = { &CPU::ORA, &CPU::SRY, 7 };
 
-	ins_table[0xF4] = { &CPU::PEA, &CPU::ABS, 5 };
-	ins_table[0xF4] = { &CPU::PEI, &CPU::DPI, 6 };
-	ins_table[0xF4] = { &CPU::PER, &CPU::ABS, 6 };
+	ins_table[0xF4] = { &CPU::PEA, &CPU::IMM16, 5 };
+	ins_table[0xD4] = { &CPU::PEI, &CPU::DPI, 6 };
+	ins_table[0x62] = { &CPU::PER, &CPU::IMM16, 6 };
 
 	ins_table[0x48] = { &CPU::PHA, &CPU::IMP, 3 };
 	ins_table[0x08] = { &CPU::PHP, &CPU::IMP, 3 };
@@ -309,67 +309,11 @@ CPU::CPU(SNES* snes) : snes(snes)
 
 void CPU::tick_components(unsigned mclock)
 {
-#ifndef DEBUG
 	snes->ppu.tick(mclock / 4);
-#endif
 }
 
 void CPU::step()
 {
-#ifdef DEBUG
-	printf("Loading json test...\n");
-	std::ifstream f("C:\\Users\\Aaron Straw\\Downloads\\65816-main\\v1\\77.n.json");
-	auto js = json::parse(f);
-
-	for (int i = 0; i < 10000; i++) {
-		std::cout << js[i]["name"] << '\n';
-		A = js[i]["initial"]["a"];
-		X = js[i]["initial"]["x"];
-		Y = js[i]["initial"]["y"];
-		status = js[i]["initial"]["p"];
-
-		PBR = js[i]["initial"]["pbr"];
-		PC = js[i]["initial"]["pc"];
-		SP = js[i]["initial"]["s"];
-
-		D = js[i]["initial"]["d"];
-		DBR = js[i]["initial"]["dbr"];
-	
-		for (int j = 0; j < js[i]["initial"]["ram"].size(); j++) {
-			uint32_t addr = js[i]["initial"]["ram"][j][0];
-			uint8_t val = js[i]["initial"]["ram"][j][1];
-			memory[addr] = val;
-		}
-		
-		// execute
-		opcode = read8(FULL_PC);
-		PC++;
-
-		(this->*ins_table[opcode].addr_mode)();
-		(this->*ins_table[opcode].ins)();
-
-		assert(A == js[i]["final"]["a"]);
-		assert(X == js[i]["final"]["x"]);
-		assert(Y == js[i]["final"]["y"]);
-		assert(status == js[i]["final"]["p"]);
-
-		assert(PC == js[i]["final"]["pc"]);
-		assert(PBR == js[i]["final"]["pbr"]);
-		assert(SP == js[i]["final"]["s"]);
-
-		assert(D == js[i]["final"]["d"]);
-		assert(DBR == js[i]["final"]["dbr"]);
-
-		for (int j = 0; j < js[i]["final"]["ram"].size(); j++) {
-			uint32_t addr = js[i]["final"]["ram"][j][0];
-			uint8_t val = js[i]["final"]["ram"][j][1];
-			
-			assert(memory[addr] == val);
-		}
-	}
-
-	f.close();
-#else
 	opcode = read8(FULL_PC);
 	PC++;
 	
@@ -377,7 +321,6 @@ void CPU::step()
 	(this->*ins_table[opcode].ins)();
 
 	if (nmi_pending) nmi();
-#endif
 }
 
 void CPU::nmi()
@@ -407,20 +350,12 @@ void CPU::reset()
 
 uint8_t CPU::read8(uint32_t addr)
 {
-#ifdef DEBUG
-	return memory[addr];
-#else
 	return snes->bus.read(addr);
-#endif
 }
 
 void CPU::write8(uint32_t addr, uint8_t val)
 {
-#ifdef DEBUG
-	memory[addr] = val;
-#else
 	return snes->bus.write(addr, val);
-#endif
 }
 
 uint16_t CPU::read16(uint32_t addr)

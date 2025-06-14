@@ -577,7 +577,7 @@ uint8_t CPU::INA()
 
 uint8_t CPU::INX()
 {
-	if (GET_M()) {
+	if (GET_X()) {
 		uint8_t res = (X & 0xFF) + 1;
 
 		SET_Z(res == 0);
@@ -597,7 +597,7 @@ uint8_t CPU::INX()
 
 uint8_t CPU::INY()
 {
-	if (GET_M()) {
+	if (GET_X()) {
 		uint8_t res = (Y & 0xFF) + 1;
 
 		SET_Z(res == 0);
@@ -863,7 +863,7 @@ uint8_t CPU::ORA()
 
 uint8_t CPU::PEA()
 {
-	push16(addr);
+	push16(val);
 	return 0;
 }
 
@@ -875,7 +875,7 @@ uint8_t CPU::PEI()
 
 uint8_t CPU::PER()
 {
-	push16(addr + PC);
+	push16(val + PC);
 	return 0;
 }
 
@@ -1555,7 +1555,7 @@ uint8_t CPU::TSB()
 uint8_t CPU::WAI()
 {
 	tick_components(6);
-	PC--;
+	if (!nmi_pending) PC--;
 	return 0;
 }
 

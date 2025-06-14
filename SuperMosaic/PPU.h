@@ -1,9 +1,12 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include <array>
 #include <SDL3/SDL.h>
 
 #define idx(x, y) y * 256 + x
+#define is_even(n) (!(n % 2))
+#define SCALE 2
 
 class SNES;
 
@@ -115,8 +118,12 @@ class PPU
 	void get_priority_m1();
 	void render_bgpixel_m1();
 
+	void get_priority_m3();
+	void render_bgpixel_m3();
+
 	uint8_t get_2bpp_row(uint16_t tset_idx);
 	uint8_t get_4bpp_row(uint16_t tset_idx);
+	uint8_t get_8bpp_row(uint16_t tset_idx);
 
 	struct ModeRender {
 		void (PPU::*get_priority)();
