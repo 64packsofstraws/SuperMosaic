@@ -34,14 +34,7 @@ void PPU::render_bgpixel_m0()
 
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-		uint16_t plane_idx = tset_idx * 8 + (y % 8);
-		uint8_t p0 = vram[plane_idx] & 0xFF;
-		uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
-
-		bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
-		bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
-
-		uint8_t pal_idx = (b1 << 1) | b0;
+		uint8_t pal_idx = get_2bpp_row(tset_idx);
 
 		if (!pal_idx && i != priority_vec.end() - 1) continue;
 
@@ -75,7 +68,7 @@ void PPU::get_priority_m1()
 			std::swap(priority_vec[0], priority_vec[1]);
 	}
 
-	if (regs.tm & 0x3) {
+	if (regs.tm & 0x4) {
 		if (regs.bgmode & 0x8) priority_vec.insert(priority_vec.begin(), bg[2]);
 		else priority_vec.push_back(bg[2]);
 	}
@@ -91,19 +84,7 @@ void PPU::render_bgpixel_m1()
 
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-		uint16_t plane_idx = tset_idx * 16 + (y % 8);
-		uint8_t p0 = vram[plane_idx] & 0xFF;
-		uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
-		uint8_t p2 = vram[plane_idx + 8] & 0xFF;
-		uint8_t p3 = (vram[plane_idx + 8] >> 8) & 0xFF;
-
-		bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
-		bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
-		bool b2 = ( p2 & ( 0x80 >> (x % 8) )) != 0;
-		bool b3 = ( p3 & ( 0x80 >> (x % 8) )) != 0;
-
-		uint8_t pal_idx = (b1 << 1) | b0;
-		pal_idx |= (b3 << 3) | (b2 << 2);
+		uint8_t pal_idx = get_4bpp_row(tset_idx);
 
 		if (!pal_idx && i != priority_vec.end() - 1) continue;
 
@@ -116,6 +97,38 @@ void PPU::render_bgpixel_m1()
 	}
 
 	priority_vec.clear();
+}
+
+uint8_t PPU::get_2bpp_row(uint16_t tset_idx)
+{
+	uint16_t plane_idx = tset_idx * 8 + (y % 8);
+	uint8_t p0 = vram[plane_idx] & 0xFF;
+	uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
+
+	bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
+	bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
+
+	uint8_t pal_idx = (b1 << 1) | b0;
+	return pal_idx;
+}
+
+uint8_t PPU::get_4bpp_row(uint16_t tset_idx)
+{
+	uint16_t plane_idx = tset_idx * 16 + (y % 8);
+	uint8_t p0 = vram[plane_idx] & 0xFF;
+	uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
+	uint8_t p2 = vram[plane_idx + 8] & 0xFF;
+	uint8_t p3 = (vram[plane_idx + 8] >> 8) & 0xFF;
+
+	bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
+	bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
+	bool b2 = ( p2 & ( 0x80 >> (x % 8) )) != 0;
+	bool b3 = ( p3 & ( 0x80 >> (x % 8) )) != 0;
+
+	uint8_t pal_idx = (b1 << 1) | b0;
+	pal_idx |= (b3 << 3) | (b2 << 2);
+
+	return pal_idx;
 }
 
 SDL_Color PPU::to_rgb888(uint16_t rgb)

@@ -115,6 +115,9 @@ class PPU
 	void get_priority_m1();
 	void render_bgpixel_m1();
 
+	uint8_t get_2bpp_row(uint16_t tset_idx);
+	uint8_t get_4bpp_row(uint16_t tset_idx);
+
 	struct ModeRender {
 		void (PPU::*get_priority)();
 		void (PPU::*render_bgp)();
