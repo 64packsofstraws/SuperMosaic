@@ -17,6 +17,7 @@ class PPU
 	int y;
 
 	struct Background {
+		uint8_t num;
 		uint16_t tilemap_base;
 		uint16_t tileset_base;
 		uint8_t tilemap_sizex;
@@ -24,6 +25,8 @@ class PPU
 		uint16_t scrollx;
 		uint16_t scrolly;
 	} bg[4];
+
+	std::vector<Background> priority_vec;
 
 	struct Regs {
 		uint8_t inidisp;
@@ -106,10 +109,19 @@ class PPU
 
 	SNES* snes;
 
-	std::vector<Background> get_priority_m0();
-	void render_bgpixel_m0(std::vector<Background> vec);
+	void get_priority_m0();
+	void render_bgpixel_m0();
 
-	bool overscan_cond() const;
+	void get_priority_m1();
+	void render_bgpixel_m1();
+
+	struct ModeRender {
+		void (PPU::*get_priority)();
+		void (PPU::*render_bgp)();
+	};
+
+	ModeRender mr_table[4];
+
 	SDL_Color to_rgb888(uint16_t rgb);
 public:
 	SDL_Window* win;

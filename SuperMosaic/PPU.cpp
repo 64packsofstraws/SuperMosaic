@@ -1,17 +1,14 @@
 #include "PPU.h"
 #include "SNES.h"
 
-std::vector<PPU::Background> PPU::get_priority_m0()
+void PPU::get_priority_m0()
 {
-	std::vector<Background> priority_vec;
-
 	for (int i = 0; i < 4; i++) {
 		if (regs.tm & (1 << i))
 			priority_vec.push_back(bg[i]);
 	}
-	if (priority_vec.size() < 2) return priority_vec;
+	if (priority_vec.size() < 2) return;
 
-	/*
 	for (int i = 0; i <= priority_vec.size() / 2; i += 2) {
 		uint16_t tmap_base = priority_vec[i].tilemap_base & 0x7FFF;
 		uint16_t tmap_base_next = priority_vec[i + 1].tilemap_base & 0x7FFF;
@@ -25,24 +22,15 @@ std::vector<PPU::Background> PPU::get_priority_m0()
 		if (priority < priority_next)
 			std::swap(priority_vec[i], priority_vec[i + 1]);
 	}
-	*/
-
-	return priority_vec;
 }
 
-void PPU::render_bgpixel_m0(std::vector<Background> vec)
+void PPU::render_bgpixel_m0()
 {
-	if (vec.size() == 0) {
-		framebuf[idx(x, y)] = { 0, 0, 0, 255 };
-		x++;
-		return;
-	}
+	for (auto i = priority_vec.begin(); i != priority_vec.end(); i++) {
+		uint16_t tmap_base = i->tilemap_base & 0x7FFF;
+		uint16_t tset_base = i->tileset_base & 0x7FFF;
 
-	for (int i = 0; i < vec.size(); i++) {
-		uint16_t tmap_base = vec[i].tilemap_base & 0x7FFF;
-		uint16_t tset_base = vec[i].tileset_base & 0x7FFF;
-
-		uint16_t tmap_idx = tmap_base + ((y / 8) * vec[i].tilemap_sizex + (x / 8));
+		uint16_t tmap_idx = tmap_base + ((y / 8) * i->tilemap_sizex + (x / 8));
 
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
@@ -55,21 +43,79 @@ void PPU::render_bgpixel_m0(std::vector<Background> vec)
 
 		uint8_t pal_idx = (b1 << 1) | b0;
 
-		if (pal_idx == 0 && i != vec.size() - 1) continue;
+		if (!pal_idx && i != priority_vec.end() - 1) continue;
 
 		uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
-		uint16_t entry = 0;
+		uint16_t entry = (!pal_idx) ? cgram[0] : cgram[32 * i->num + 4 * tmap_pal + pal_idx];
 
-		framebuf[idx(x, y)] = {0, 0, 0, 255};
+		framebuf[idx(x, y)] = to_rgb888(entry);
 		x++;
 		break;
 	}
+
+	priority_vec.clear();
 }
 
-bool PPU::overscan_cond() const
+void PPU::get_priority_m1()
 {
-	// this cond is fucking stupid
-	return (regs.setini & 0x4 && dot >= 8 && dot <= 333 && scanline <= vblank_scanline + 22);
+	if (regs.tm & 0x1) priority_vec.push_back(bg[0]);
+	if (regs.tm & 0x2) priority_vec.push_back(bg[1]);
+
+	if (priority_vec.size() == 2) {
+		uint16_t tmap_base = priority_vec[0].tilemap_base & 0x7FFF;
+		uint16_t tmap_base_next = priority_vec[1].tilemap_base & 0x7FFF;
+
+		uint16_t tmap_idx = tmap_base + ((y / 8) * priority_vec[0].tilemap_sizex + (x / 8));
+		uint16_t tmap_idx_next = tmap_base_next + ((y / 8) * priority_vec[1].tilemap_sizex + (x / 8));
+
+		bool priority = (vram[tmap_idx] >> 13) & 1;
+		bool priority_next = (vram[tmap_idx_next] >> 13) & 1;
+
+		if (priority < priority_next)
+			std::swap(priority_vec[0], priority_vec[1]);
+	}
+
+	if (regs.tm & 0x3) {
+		if (regs.bgmode & 0x8) priority_vec.insert(priority_vec.begin(), bg[2]);
+		else priority_vec.push_back(bg[2]);
+	}
+}
+
+void PPU::render_bgpixel_m1()
+{
+	for (auto i = priority_vec.begin(); i != priority_vec.end(); i++) {
+		uint16_t tmap_base = i->tilemap_base & 0x7FFF;
+		uint16_t tset_base = i->tileset_base & 0x7FFF;
+
+		uint16_t tmap_idx = tmap_base + ((y / 8) * i->tilemap_sizex + (x / 8));
+
+		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
+
+		uint16_t plane_idx = tset_idx * 16 + (y % 8);
+		uint8_t p0 = vram[plane_idx] & 0xFF;
+		uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
+		uint8_t p2 = vram[plane_idx + 8] & 0xFF;
+		uint8_t p3 = (vram[plane_idx + 8] >> 8) & 0xFF;
+
+		bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
+		bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
+		bool b2 = ( p2 & ( 0x80 >> (x % 8) )) != 0;
+		bool b3 = ( p3 & ( 0x80 >> (x % 8) )) != 0;
+
+		uint8_t pal_idx = (b1 << 1) | b0;
+		pal_idx |= (b3 << 3) | (b2 << 2);
+
+		if (!pal_idx && i != priority_vec.end() - 1) continue;
+
+		uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
+		uint16_t entry = (!pal_idx) ? cgram[0] : cgram[16 * tmap_pal + pal_idx];
+
+		framebuf[idx(x, y)] = to_rgb888(entry);
+		x++;
+		break;
+	}
+
+	priority_vec.clear();
 }
 
 SDL_Color PPU::to_rgb888(uint16_t rgb)
@@ -89,6 +135,16 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 {
 	memset(&regs, 0, sizeof(regs));
 	memset(&bg, 0, sizeof(bg));
+
+	bg[0].num = 0;
+	bg[1].num = 1;
+	bg[2].num = 2;
+	bg[3].num = 3;
+
+	mr_table[0].get_priority = &PPU::get_priority_m0;
+	mr_table[0].render_bgp = &PPU::render_bgpixel_m0;
+	mr_table[1].get_priority = &PPU::get_priority_m1;
+	mr_table[1].render_bgp = &PPU::render_bgpixel_m1;
 
 	mdr = 0;
 	vram_addr = vram_inc = 0;
@@ -674,40 +730,15 @@ void PPU::tick(unsigned cycles)
 
 	if (scanline >= 1 && scanline <= 224 && dot >= 22 && x < 256) {
 		for (int i = 0; i < cycles && x < 256; i++) {
-			if (!(regs.tm & 0xF)) {
+			(this->*mr_table[regs.bgmode & 1].get_priority)();
+
+			if (!priority_vec.size()) {
 				framebuf[idx(x, y)] = { 0, 0, 0, 255 };
 				x++;
 				break;
 			}
 
-			for (int j = 3; j >= 0; j--) {
-				if (!(regs.tm & (1 << j))) continue;
-
-				uint16_t tmap_base = bg[j].tilemap_base & 0x7FFF;
-				uint16_t tset_base = bg[j].tileset_base & 0x7FFF;
-
-				uint16_t tmap_idx = (tmap_base + ((y / 8) * bg[j].tilemap_sizex + (x / 8))) & 0x7FFF;
-
-				uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
-
-				uint16_t plane_idx = tset_idx * 8 + (y % 8);
-				uint8_t p0 = vram[plane_idx] & 0xFF;
-				uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
-
-				bool b0 = ( p0 & ( 0x80 >> (x % 8) )) != 0;
-				bool b1 = ( p1 & ( 0x80 >> (x % 8) )) != 0;
-
-				uint8_t pal_idx = (b1 << 1) | b0;
-
-				if (!pal_idx && j != 0) continue;
-
-				uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
-				uint16_t entry = cgram[4 * (j + 1) * tmap_pal + pal_idx];
-
-				framebuf[idx(x, y)] = to_rgb888(entry);
-				x++;
-				break;
-			}
+			(this->*mr_table[regs.bgmode & 1].render_bgp)();
 		}
 	}
 	else if (scanline >= vblank_scanline && scanline <= 261) {
