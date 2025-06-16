@@ -4,7 +4,6 @@
 #include <array>
 #include <fstream>
 #include <iostream>
-#include "json.hpp"
 
 #define SET_C(c) (c) ? status |= 0x1 : status &= ~0x1;
 #define SET_Z(c) (c) ? status |= 0x2 : status &= ~0x2; 
@@ -25,8 +24,6 @@
 #define GET_N() ((status >> 7) & 1)
 
 #define FULL_PC ((PBR << 16) | PC)
-
-using nlohmann::json;
 
 class SNES;
 
