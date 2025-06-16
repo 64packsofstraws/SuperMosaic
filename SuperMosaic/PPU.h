@@ -94,8 +94,6 @@ class PPU
 		uint16_t cgdataread;
 	} regs;
 
-	uint8_t mode;
-
 	uint16_t vram_addr;
 	unsigned vram_inc;
 	bool cgreg_write;

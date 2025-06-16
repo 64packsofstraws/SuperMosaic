@@ -42,6 +42,9 @@
     <ClCompile Include="DMA.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PPU_Registers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CPU.h">
