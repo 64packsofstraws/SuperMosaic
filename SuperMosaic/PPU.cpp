@@ -84,9 +84,7 @@ void PPU::render_bgpixel_m1()
 
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-		uint8_t pal_idx;
-		if (i->num == 3) pal_idx = get_2bpp_row(tset_idx);
-		else pal_idx = pal_idx = get_4bpp_row(tset_idx);
+		uint8_t pal_idx = (i->num == 3) ? get_2bpp_row(tset_idx) : get_4bpp_row(tset_idx);
 
 		if (!pal_idx && i != priority_vec.end() - 1) continue;
 
@@ -155,7 +153,7 @@ void PPU::render_bgpixel_m3()
 
 uint8_t PPU::get_2bpp_row(uint16_t tset_idx)
 {
-	uint16_t plane_idx = tset_idx * 8 + (y % 8);
+	uint16_t plane_idx = tset_idx * 8 + (y % 8) + (tset_idx & 0xF000);
 
 	uint8_t p0 = vram[plane_idx] & 0xFF;
 	uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
@@ -169,7 +167,7 @@ uint8_t PPU::get_2bpp_row(uint16_t tset_idx)
 
 uint8_t PPU::get_4bpp_row(uint16_t tset_idx)
 {
-	uint16_t plane_idx = tset_idx * 16 + (y % 8);
+	uint16_t plane_idx = tset_idx * 16 + (y % 8) + (tset_idx & 0xF000);
 
 	uint8_t p0 = vram[plane_idx] & 0xFF;
 	uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
@@ -189,7 +187,7 @@ uint8_t PPU::get_4bpp_row(uint16_t tset_idx)
 
 uint8_t PPU::get_8bpp_row(uint16_t tset_idx)
 {
-	uint16_t plane_idx = tset_idx * 32 + (y % 8);
+	uint16_t plane_idx = tset_idx * 32 + (y % 8) + (tset_idx & 0xF000);
 
 	uint8_t p0 = vram[plane_idx] & 0xFF;
 	uint8_t p1 = (vram[plane_idx] >> 8) & 0xFF;
