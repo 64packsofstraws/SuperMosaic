@@ -57,6 +57,9 @@ uint8_t PPU::read_reg(uint16_t addr)
 
 void PPU::write_reg(uint16_t addr, uint8_t val)
 {
+	static uint8_t bgofs_latch = 0;
+	static uint8_t bghofs_latch = 0;
+
 	switch (addr) {
 		case 0x2100:
 			regs.inidisp = val;
@@ -208,125 +211,49 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			bg[3].tileset_base = (regs.bg34nba & 0xF0) << 8;
 			break;
 
-		case 0x210D: {
-				static bool reg_write = false;
-				regs.bg1hofs = val;
+		case 0x210D:
+			bg[0].scrollx = (val << 8) | (bgofs_latch & ~7) | (bghofs_latch & 7);
+			bgofs_latch = val;
+			bghofs_latch = val;
+			break;
 
-				if (!reg_write) {
-					bg[0].scrollx = (bg[0].scrollx & 0xFF00) | regs.bg1hofs;
-					reg_write = true;
-				}
-				else {
-					bg[0].scrollx = (bg[0].scrollx & 0x00FF) | (regs.bg1hofs << 8);
-					reg_write = false;
-				}
-		}
-				   break;
+		case 0x210E:
+			bg[0].scrolly = (val << 8) | bgofs_latch;
+			bgofs_latch = val;
+			break;
 
-		case 0x210E: {
-					   static bool reg_write = false;
-					   regs.bg1vofs = val;
+		case 0x210F:
+			bg[1].scrollx = (val << 8) | (bgofs_latch & ~7) | (bghofs_latch & 7);
+			bgofs_latch = val;
+			bghofs_latch = val;
+			break;
 
-					   if (!reg_write) {
-						   bg[0].scrolly = (bg[0].scrolly & 0xFF00) | regs.bg1vofs;
-						   reg_write = true;
-					   }
-					   else {
-						   bg[0].scrolly = (bg[0].scrolly & 0x00FF) | (regs.bg1vofs << 8);
-						   reg_write = false;
-					   }
-		}
-				   break;
+		case 0x2110:
+			bg[1].scrolly = (val << 8) | bgofs_latch;
+			bgofs_latch = val;
+			break;
 
-		case 0x210F: {
-					   static bool reg_write = false;
-					   regs.bg2hofs = val;
+		case 0x2111:
+			bg[2].scrollx = (val << 8) | (bgofs_latch & ~7) | (bghofs_latch & 7);
+			bgofs_latch = val;
+			bghofs_latch = val;
+			break;
 
-					   if (!reg_write) {
-						   bg[1].scrollx = (bg[1].scrollx & 0xFF00) | regs.bg2hofs;
-						   reg_write = true;
-					   }
-					   else {
-						   bg[1].scrollx = (bg[1].scrollx & 0x00FF) | (regs.bg2hofs << 8);
-						   reg_write = false;
-					   }
-		}
-				   break;
+		case 0x2112:
+			bg[2].scrolly = (val << 8) | bgofs_latch;
+			bgofs_latch = val;
+			break;
 
-		case 0x2110: {
-					   static bool reg_write = false;
-					   regs.bg2vofs = val;
+		case 0x2113:
+			bg[3].scrollx = (val << 8) | (bgofs_latch & ~7) | (bghofs_latch & 7);
+			bgofs_latch = val;
+			bghofs_latch = val;
+			break;
 
-					   if (!reg_write) {
-						   bg[1].scrolly = (bg[1].scrolly & 0xFF00) | regs.bg2vofs;
-						   reg_write = true;
-					   }
-					   else {
-						   bg[1].scrolly = (bg[1].scrolly & 0x00FF) | (regs.bg2vofs << 8);
-						   reg_write = false;
-					   }
-		}
-				   break;
-
-		case 0x2111: {
-					   static bool reg_write = false;
-					   regs.bg3hofs = val;
-
-					   if (!reg_write) {
-						   bg[2].scrollx = (bg[2].scrollx & 0xFF00) | regs.bg3hofs;
-						   reg_write = true;
-					   }
-					   else {
-						   bg[2].scrollx = (bg[2].scrollx & 0x00FF) | (regs.bg3hofs << 8);
-						   reg_write = false;
-					   }
-		}
-				   break;
-
-		case 0x2112: {
-					   static bool reg_write = false;
-					   regs.bg3vofs = val;
-
-					   if (!reg_write) {
-						   bg[2].scrolly = (bg[2].scrolly & 0xFF00) | regs.bg3vofs;
-						   reg_write = true;
-					   }
-					   else {
-						   bg[2].scrolly = (bg[2].scrolly & 0x00FF) | (regs.bg3vofs << 8);
-						   reg_write = false;
-					   }
-		}
-				   break;
-
-		case 0x2113: {
-					   static bool reg_write = false;
-					   regs.bg4hofs = val;
-
-					   if (!reg_write) {
-						   bg[3].scrollx = (bg[3].scrollx & 0xFF00) | regs.bg4hofs;
-						   reg_write = true;
-					   }
-					   else {
-						   bg[3].scrollx = (bg[3].scrollx & 0x00FF) | (regs.bg4hofs << 8);
-						   reg_write = false;
-					   }
-		}
-				   break;
-
-		case 0x2114: {
-					   static bool reg_write = false;
-					   regs.bg4vofs = val;
-
-					   if (!reg_write) {
-						   bg[3].scrolly = (bg[3].scrolly & 0xFF00) | regs.bg4vofs;
-						   reg_write = true;
-					   }
-					   else {
-						   bg[3].scrolly = (bg[3].scrolly & 0x00FF) | (regs.bg4vofs << 8);
-						   reg_write = false;
-					   }
-		}
-				   break;
+		case 0x2114:
+			bg[3].scrolly = (val << 8) | bgofs_latch;
+			bgofs_latch = val;
+			break;
 
 		case 0x2115:
 			regs.vmain = val;

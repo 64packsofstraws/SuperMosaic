@@ -5,16 +5,19 @@ void PPU::get_priority_m0()
 {
 	for (int i = 0; i < 4; i++) {
 		if (regs.tm & (1 << i))
-			priority_vec.push_back(bg[i]);
+			priority_vec[parr_len++] = bg[i];
 	}
-	if (priority_vec.size() < 2) return;
+	if (parr_len < 2) return;
 
-	for (int i = 0; i <= priority_vec.size() / 2; i += 2) {
+	for (int i = 0; i <= parr_len / 2; i += 2) {
 		uint16_t tmap_base = priority_vec[i].tilemap_base & 0x7FFF;
 		uint16_t tmap_base_next = priority_vec[i + 1].tilemap_base & 0x7FFF;
 
-		uint16_t tmap_idx = tmap_base + ((y / 8) * priority_vec[i].tilemap_sizex + (x / 8));
-		uint16_t tmap_idx_next = tmap_base_next + ((y / 8) * priority_vec[i + 1].tilemap_sizex + (x / 8));
+		uint16_t scrollx = (priority_vec[i].scrollx + x) % (8 * priority_vec[i].tilemap_sizex);
+		uint16_t scrolly = (priority_vec[i].scrolly + y) % (8 * priority_vec[i].tilemap_sizey);
+
+		uint16_t tmap_idx = tmap_base + ((scrolly / 8) * priority_vec[i].tilemap_sizex + (scrollx / 8));
+		uint16_t tmap_idx_next = tmap_base_next + ((scrolly / 8) * priority_vec[i + 1].tilemap_sizex + (scrollx / 8));
 
 		bool priority = (vram[tmap_idx] >> 13) & 1;
 		bool priority_next = (vram[tmap_idx_next] >> 13) & 1;
@@ -26,117 +29,146 @@ void PPU::get_priority_m0()
 
 void PPU::render_bgpixel_m0()
 {
-	for (auto i = priority_vec.begin(); i != priority_vec.end(); i++) {
-		uint16_t tmap_base = i->tilemap_base & 0x7FFF;
-		uint16_t tset_base = i->tileset_base & 0x7FFF;
+	for (int i = 0; i < parr_len; i++) {
+		Background bg = priority_vec[i];
 
-		uint16_t tmap_idx = tmap_base + ((y / 8) * i->tilemap_sizex + (x / 8));
+		uint16_t tmap_base = bg.tilemap_base & 0x7FFF;
+		uint16_t tset_base = bg.tileset_base & 0x7FFF;
+
+		uint16_t scrollx = (bg.scrollx + x) % (8 * bg.tilemap_sizex);
+		uint16_t scrolly = (bg.scrolly + y) % (8 * bg.tilemap_sizey);
+
+		uint16_t tmap_idx = tmap_base + ((scrolly / 8) * bg.tilemap_sizex + (scrollx / 8));
 
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-		uint8_t pal_idx = get_2bpp_row(tset_idx);
+		uint8_t pal_idx = get_2bpp_row(tset_idx, scrollx, scrolly);
 
-		if (!pal_idx && i != priority_vec.end() - 1) continue;
+		if (!pal_idx && i != parr_len - 1) continue;
 
 		uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
-		uint16_t entry = (!pal_idx) ? cgram[0] : cgram[32 * i->num + 4 * tmap_pal + pal_idx];
+		uint16_t entry = (!pal_idx) ? cgram[0] : cgram[32 * bg.num + 4 * tmap_pal + pal_idx];
 
 		framebuf[idx(x, y)] = to_rgb888(entry);
 		x++;
 		break;
 	}
-
-	priority_vec.clear();
 }
 
 void PPU::get_priority_m1()
 {
-	if (regs.tm & 0x1) priority_vec.push_back(bg[0]);
-	if (regs.tm & 0x2) priority_vec.push_back(bg[1]);
+	if (regs.tm & 0x1) priority_vec[parr_len++] = bg[0];
+	if (regs.tm & 0x2) priority_vec[parr_len++] = bg[1];
+	if (regs.tm & 0x4) priority_vec[parr_len++] = bg[2];
 
-	if (priority_vec.size() == 2) {
-		uint16_t tmap_base = priority_vec[0].tilemap_base & 0x7FFF;
-		uint16_t tmap_base_next = priority_vec[1].tilemap_base & 0x7FFF;
+	if (parr_len <= 1) return;
 
-		uint16_t tmap_idx = tmap_base + ((y / 8) * priority_vec[0].tilemap_sizex + (x / 8));
-		uint16_t tmap_idx_next = tmap_base_next + ((y / 8) * priority_vec[1].tilemap_sizex + (x / 8));
+	uint16_t tmap_base = priority_vec[0].tilemap_base & 0x7FFF;
+	uint16_t tmap_base_next = priority_vec[1].tilemap_base & 0x7FFF;
 
-		bool priority = (vram[tmap_idx] >> 13) & 1;
-		bool priority_next = (vram[tmap_idx_next] >> 13) & 1;
+	uint16_t scrollx = (priority_vec[0].scrollx + x) % (8 * priority_vec[0].tilemap_sizex);
+	uint16_t scrolly = (priority_vec[0].scrolly + y) % (8 * priority_vec[0].tilemap_sizey);
 
-		if (priority < priority_next)
-			std::swap(priority_vec[0], priority_vec[1]);
-	}
+	uint16_t scrollx_next = (priority_vec[1].scrollx + x) % (8 * priority_vec[1].tilemap_sizex);
+	uint16_t scrolly_next = (priority_vec[1].scrolly + y) % (8 * priority_vec[1].tilemap_sizey);
 
-	if (regs.tm & 0x4) {
-		if (regs.bgmode & 0x8) priority_vec.insert(priority_vec.begin(), bg[2]);
-		else priority_vec.push_back(bg[2]);
+	uint16_t tmap_idx = tmap_base + ((scrolly / 8) * priority_vec[0].tilemap_sizex + (scrollx / 8));
+	uint16_t tmap_idx_next = tmap_base_next + ((scrolly_next / 8) * priority_vec[1].tilemap_sizex + (scrollx_next / 8));
+
+	bool priority = (vram[tmap_idx] >> 13) & 1;
+	bool priority_next = (vram[tmap_idx_next] >> 13) & 1;
+
+	if (priority < priority_next)
+		std::swap(priority_vec[0], priority_vec[1]);
+
+	if (parr_len < 3) return;
+	
+	tmap_base = bg[2].tilemap_base & 0x7FFF;
+
+	scrollx = (bg[2].scrollx + x) % (8 * bg[2].tilemap_sizex);
+	scrolly = (bg[2].scrolly + y) % (8 * bg[2].tilemap_sizey);
+
+	tmap_idx = tmap_base + ((scrolly / 8) * bg[2].tilemap_sizex + (scrollx / 8));
+	priority = (vram[tmap_idx] >> 13) & 1;
+
+	if (regs.bgmode & 0x8 && priority) {
+		priority_vec[2] = priority_vec[1];
+		priority_vec[1] = priority_vec[0];
+		priority_vec[0] = bg[2];
 	}
 }
 
 void PPU::render_bgpixel_m1()
 {
-	for (auto i = priority_vec.begin(); i != priority_vec.end(); i++) {
-		uint16_t tmap_base = i->tilemap_base & 0x7FFF;
-		uint16_t tset_base = i->tileset_base & 0x7FFF;
+	for (int i = 0; i < parr_len; i++) {
+		Background bg = priority_vec[i];
 
-		uint16_t tmap_idx = tmap_base + ((y / 8) * i->tilemap_sizex + (x / 8));
+		uint16_t tmap_base = bg.tilemap_base & 0x7FFF;
+		uint16_t tset_base = bg.tileset_base & 0x7FFF;
+
+		uint16_t tmap_idx = tmap_base + ((y / 8) * bg.tilemap_sizex + (x / 8));
 
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-		uint8_t pal_idx = (i->num == 3) ? get_2bpp_row(tset_idx) : get_4bpp_row(tset_idx);
+		uint8_t pal_idx = (bg.num == 3) ? get_2bpp_row(tset_idx, x, y) : get_4bpp_row(tset_idx, x, y);
 
-		if (!pal_idx && i != priority_vec.end() - 1) continue;
+		if (!pal_idx && i != parr_len - 1) continue;
 
 		uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
-		uint16_t entry = (!pal_idx) ? cgram[0] : cgram[((i->num == 3) ? 4 : 16) * tmap_pal + pal_idx];
+		uint16_t entry = (!pal_idx) ? cgram[0] : cgram[((bg.num == 3) ? 4 : 16) * tmap_pal + pal_idx];
 
 		framebuf[idx(x, y)] = to_rgb888(entry);
 		x++;
 		break;
 	}
-
-	priority_vec.clear();
 }
 
 void PPU::get_priority_m3()
 {
-	if (regs.tm & 0x1) priority_vec.push_back(bg[0]);
-	if (regs.tm & 0x2) priority_vec.push_back(bg[1]);
+	if (regs.tm & 0x1) priority_vec[parr_len++] = bg[0];
+	if (regs.tm & 0x2) priority_vec[parr_len++] = bg[1];
 
-	if (priority_vec.size() == 2) {
-		uint16_t tmap_base = priority_vec[0].tilemap_base & 0x7FFF;
-		uint16_t tmap_base_next = priority_vec[1].tilemap_base & 0x7FFF;
+	if (parr_len < 2) return;
 
-		uint16_t tmap_idx = tmap_base + ((y / 8) * priority_vec[0].tilemap_sizex + (x / 8));
-		uint16_t tmap_idx_next = tmap_base_next + ((y / 8) * priority_vec[1].tilemap_sizex + (x / 8));
+	uint16_t tmap_base = priority_vec[0].tilemap_base & 0x7FFF;
+	uint16_t tmap_base_next = priority_vec[1].tilemap_base & 0x7FFF;
 
-		bool priority = (vram[tmap_idx] >> 13) & 1;
-		bool priority_next = (vram[tmap_idx_next] >> 13) & 1;
+	uint16_t scrollx = (priority_vec[0].scrollx + x) % (8 * priority_vec[0].tilemap_sizex);
+	uint16_t scrolly = (priority_vec[1].scrolly + y) % (8 * priority_vec[1].tilemap_sizey);
 
-		if (priority < priority_next)
-			std::swap(priority_vec[0], priority_vec[1]);
-	}
+	uint16_t tmap_idx = tmap_base + ((scrolly / 8) * priority_vec[0].tilemap_sizex + (scrollx / 8));
+	uint16_t tmap_idx_next = tmap_base_next + ((scrolly / 8) * priority_vec[1].tilemap_sizex + (scrollx / 8));
+
+	bool priority = (vram[tmap_idx] >> 13) & 1;
+	bool priority_next = (vram[tmap_idx_next] >> 13) & 1;
+
+	if (priority < priority_next)
+		std::swap(priority_vec[0], priority_vec[1]);
 }
 
 void PPU::render_bgpixel_m3()
 {
-	for (auto i = priority_vec.begin(); i != priority_vec.end(); i++) {
-		uint16_t tmap_base = i->tilemap_base & 0x7FFF;
-		uint16_t tset_base = i->tileset_base & 0x7FFF;
+	for (int i = 0; i < parr_len; i++) {
+		Background bg = priority_vec[i];
 
-		uint16_t tmap_idx = tmap_base + ((y / 8) * i->tilemap_sizex + (x / 8));
+		uint16_t tmap_base = bg.tilemap_base & 0x7FFF;
+		uint16_t tset_base = bg.tileset_base & 0x7FFF;
+
+		uint16_t scrollx = (bg.scrollx + x) % (8 * bg.tilemap_sizex);
+		uint16_t scrolly = (bg.scrolly + y) % (8 * bg.tilemap_sizey);
+
+		uint16_t tmap_idx = tmap_base + ((scrolly / 8) * bg.tilemap_sizex + (scrollx / 8));
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-		uint8_t pal_idx = (i->num == 0) ? get_8bpp_row(tset_idx) : get_4bpp_row(tset_idx);
+		uint8_t pal_idx = (bg.num == 0) ? get_8bpp_row(tset_idx, scrollx, scrolly) : get_4bpp_row(tset_idx, scrollx, scrolly);
 
-		if (!pal_idx && i != priority_vec.end() - 1) continue;
+		if (!pal_idx && i != parr_len - 1) continue;
 
 		uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
 
 		uint8_t cgram_idx;
-		if (i->num == 1) {
-			cgram_idx = (!pal_idx) ? 0 : 16 * tmap_pal + pal_idx;
+		if (bg.num == 1 || pal_idx) {
+			cgram_idx = 16 * tmap_pal + pal_idx;
 		}
 		else {
 			cgram_idx = pal_idx;
@@ -147,11 +179,9 @@ void PPU::render_bgpixel_m3()
 		x++;
 		break;
 	}
-
-	priority_vec.clear();
 }
 
-uint8_t PPU::get_2bpp_row(uint16_t tset_idx)
+uint8_t PPU::get_2bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y)
 {
 	uint16_t plane_idx = tset_idx * 8 + (y % 8) + (tset_idx & 0xF000);
 
@@ -165,7 +195,7 @@ uint8_t PPU::get_2bpp_row(uint16_t tset_idx)
 	return pal_idx;
 }
 
-uint8_t PPU::get_4bpp_row(uint16_t tset_idx)
+uint8_t PPU::get_4bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y)
 {
 	uint16_t plane_idx = tset_idx * 16 + (y % 8) + (tset_idx & 0xF000);
 
@@ -185,7 +215,7 @@ uint8_t PPU::get_4bpp_row(uint16_t tset_idx)
 	return pal_idx;
 }
 
-uint8_t PPU::get_8bpp_row(uint16_t tset_idx)
+uint8_t PPU::get_8bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y)
 {
 	uint16_t plane_idx = tset_idx * 32 + (y % 8) + (tset_idx & 0xF000);
 
@@ -251,7 +281,10 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 
 	vblank_scanline = 224;
 	vblank_flag = nmi_enable = false;
-	dot = scanline = mclock_dot = 0;
+	frame_ready = false;
+	dot = scanline = 0;
+
+	parr_len = 0;
 
 	x = y = 0;
 
@@ -267,8 +300,6 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 		256 * SCALE,
 		224 * SCALE
 	);
-
-	elapsed_tick = SDL_GetTicks();
 }
 
 PPU::~PPU()
@@ -305,12 +336,11 @@ void PPU::tick(unsigned cycles)
 		x = 0;
 
 		if (scanline == 224) {
-			vblank_flag = true;
-			render();
+			vblank_flag = frame_ready = true;
 		}
 
 		if (scanline > 261) {
-			dot = mclock_dot = 0;
+			dot = 0;
 			scanline = 0;
 			x = y = 0;
 			vblank_flag = false;
@@ -321,13 +351,15 @@ void PPU::tick(unsigned cycles)
 		for (int i = 0; i < cycles && x < 256; i++) {
 			(this->*mr_table[regs.bgmode & 0x3].get_priority)();
 
-			if (!priority_vec.size()) {
+			if (!parr_len) {
 				framebuf[idx(x, y)] = { 0, 0, 0, 255 };
 				x++;
-				break;
+				continue;
 			}
 
 			(this->*mr_table[regs.bgmode & 0x3].render_bgp)();
+
+			parr_len = 0;
 		}
 	}
 	else if (scanline >= 224 && scanline <= 261) {
@@ -362,11 +394,5 @@ void PPU::render()
 
 	SDL_RenderPresent(ren);
 
-	elapsed_tick = SDL_GetTicks() - elapsed_tick;
-
-	if (elapsed_tick < 16) {
-		SDL_Delay(16 - elapsed_tick);
-
-		elapsed_tick = SDL_GetTicks();
-	}
+	frame_ready = false;
 }

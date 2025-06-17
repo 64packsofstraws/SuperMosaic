@@ -4,9 +4,9 @@
 #include <array>
 #include <SDL3/SDL.h>
 
-#define idx(x, y) y * 256 + x
-#define is_even(n) (!(n % 2))
-#define SCALE 2
+#define idx(x, y) (y * 256 + x)
+#define is_odd(n) ((n) % 2)
+constexpr int SCALE = 2;
 
 class SNES;
 
@@ -29,7 +29,8 @@ class PPU
 		uint16_t scrolly;
 	} bg[4];
 
-	std::vector<Background> priority_vec;
+	Background priority_vec[4];
+	int parr_len;
 
 	struct Regs {
 		uint8_t inidisp;
@@ -105,7 +106,6 @@ class PPU
 	bool nmi_enable;
 
 	int dot;
-	int mclock_dot;
 	int scanline;
 
 	SNES* snes;
@@ -119,9 +119,9 @@ class PPU
 	void get_priority_m3();
 	void render_bgpixel_m3();
 
-	uint8_t get_2bpp_row(uint16_t tset_idx);
-	uint8_t get_4bpp_row(uint16_t tset_idx);
-	uint8_t get_8bpp_row(uint16_t tset_idx);
+	uint8_t get_2bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y);
+	uint8_t get_4bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y);
+	uint8_t get_8bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y);
 
 	struct ModeRender {
 		void (PPU::*get_priority)();
@@ -135,7 +135,7 @@ public:
 	SDL_Window* win;
 	SDL_Renderer* ren;
 	SDL_Texture* tex;
-	Uint64 elapsed_tick;
+	bool frame_ready;
 
 	PPU(SNES* snes);
 	~PPU();
