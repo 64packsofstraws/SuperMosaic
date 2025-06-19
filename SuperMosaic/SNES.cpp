@@ -86,9 +86,16 @@ void SNES::run()
 	while (running) {
 		while (SDL_PollEvent(&e)) {
 			switch (e.type) {
-			case SDL_EVENT_QUIT:
-				running = false;
-				break;
+				case SDL_EVENT_QUIT:
+					running = false;
+					break;
+
+				case SDL_EVENT_KEY_DOWN:
+					bus.handle_joyp_in(e.key.key);
+					break;
+
+				case SDL_EVENT_KEY_UP:
+					bus.handle_joyp_out(e.key.key);
 			}
 		}
 

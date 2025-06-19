@@ -28,6 +28,20 @@ uint8_t Bus::read_regs(uint16_t addr)
 		case 0x4217:
 			return regs.rdmpyh;
 
+		case 0x4218:
+			return regs.joy1 & 0xFF;
+
+		case 0x4219:
+			return (regs.joy1 >> 8) & 0xFF;
+
+		case 0x421A:
+		case 0x421B:
+		case 0x421C:
+		case 0x421D:
+		case 0x421E:
+		case 0x421F:
+			return 0;
+
 		case 0x4210:
 			uint8_t tmp = regs.rdnmi ^ (snes->ppu.get_vblank_flag() << 7);
 			snes->ppu.set_vblank_flag(false);
@@ -151,6 +165,46 @@ Bus::Bus(SNES* snes) : snes(snes), wram(0x20000, 0)
 	memset(&regs, 0, sizeof(regs));
 	wram_addr = 0;
 	mdr = 0;
+}
+
+void Bus::handle_joyp_in(SDL_Keycode k)
+{
+	switch (k) {
+		case SDLK_W: regs.joy1 |= (1 << 4); break;
+		case SDLK_Q: regs.joy1 |= (1 << 5); break;
+		case SDLK_S: regs.joy1 |= (1 << 6); break;
+		case SDLK_A: regs.joy1 |= (1 << 7); break;
+
+		case SDLK_RIGHT: regs.joy1 |= (1 << 8); break;
+		case SDLK_LEFT: regs.joy1 |= (1 << 9); break;
+		case SDLK_DOWN: regs.joy1 |= (1 << 10); break;
+		case SDLK_UP: regs.joy1 |= (1 << 11); break;
+
+		case SDLK_RETURN: regs.joy1 |= (1 << 12); break;
+		case SDLK_SPACE: regs.joy1 |= (1 << 13); break;
+		case SDLK_X: regs.joy1 |= (1 << 14); break;
+		case SDLK_Z: regs.joy1 |= (1 << 15); break;
+	}
+}
+
+void Bus::handle_joyp_out(SDL_Keycode k)
+{
+	switch (k) {
+		case SDLK_W: regs.joy1 &= ~(1 << 4); break;
+		case SDLK_Q: regs.joy1 &= ~(1 << 5); break;
+		case SDLK_S: regs.joy1 &= ~(1 << 6); break;
+		case SDLK_A: regs.joy1 &= ~(1 << 7); break;
+
+		case SDLK_RIGHT: regs.joy1 &= ~(1 << 8); break;
+		case SDLK_LEFT: regs.joy1 &= ~(1 << 9); break;
+		case SDLK_DOWN: regs.joy1 &= ~(1 << 10); break;
+		case SDLK_UP: regs.joy1 &= ~(1 << 11); break;
+
+		case SDLK_RETURN: regs.joy1 &= ~(1 << 12); break;
+		case SDLK_SPACE: regs.joy1 &= ~(1 << 13); break;
+		case SDLK_X: regs.joy1 &= ~(1 << 14); break;
+		case SDLK_Z: regs.joy1 &= ~(1 << 15); break;
+	}
 }
 
 uint8_t Bus::read(uint32_t addr)
