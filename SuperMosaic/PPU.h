@@ -125,7 +125,7 @@ class PPU
 
 	SNES* snes;
 
-	uint8_t get_bpp_row(uint8_t bpp, uint16_t tset_idx, uint16_t x, uint16_t y);
+	uint8_t get_bpp_row(uint8_t bpp, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y);
 	uint16_t get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum);
 
 	void render_scanline();

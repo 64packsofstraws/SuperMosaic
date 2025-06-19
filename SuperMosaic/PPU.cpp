@@ -1,16 +1,19 @@
 #include "PPU.h"
 #include "SNES.h"
 
-uint8_t PPU::get_bpp_row(uint8_t bpp, uint16_t tset_idx, uint16_t x, uint16_t y)
+uint8_t PPU::get_bpp_row(uint8_t bpp, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y)
 {
-	uint16_t plane_idx = tset_idx * (bpp * 4) + (y % 8) + (tset_idx & 0xF000);
+	uint8_t ydir = (vram[tmap_idx] >> 15) & 1 ? 7 - (y % 8) : (y % 8);
+
+	uint16_t plane_idx = tset_idx * (bpp * 4) + ydir + (tset_idx & 0xF000);
 
 	uint8_t pal_idx = 0;
 
 	for (int i = 0; i < bpp; i++) {
 		uint8_t p = (vram[plane_idx + 8 * (i / 2)] >> 8 * is_odd(i)) & 0xFF;
-		bool b = ( p & ( 0x80 >> (x % 8) )) != 0;
+		uint8_t xdir = (vram[tmap_idx] >> 14) & 1 ? 0x1 << (x % 8) : 0x80 >> (x % 8);
 
+		bool b = (p & xdir) != 0;
 		pal_idx |= (b << i);
 	}
 
@@ -69,7 +72,7 @@ void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 
 		uint16_t tset_idx = tset_base + (vram[tmap_idx] & 0x3FF);
 
-		uint8_t pal_idx = get_bpp_row(bg[bgnum].bpp, tset_idx, scrollx, scrolly);
+		uint8_t pal_idx = get_bpp_row(bg[bgnum].bpp, tmap_idx, tset_idx, scrollx, scrolly);
 
 		uint8_t tmap_pal = (vram[tmap_idx] >> 10) & 0x7;
 		uint16_t cgram_idx = get_cgidx_by_mode(tmap_pal, pal_idx, bg[bgnum].num);
