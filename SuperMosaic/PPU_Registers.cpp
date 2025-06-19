@@ -83,6 +83,49 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 
 		case 0x2105:
 			regs.bgmode = val;
+
+			switch (regs.bgmode & 0x7) {
+				case 0:
+					bg[0].bpp = 2;
+					bg[1].bpp = 2;
+					bg[2].bpp = 2;
+					bg[3].bpp = 2;
+					break;
+
+				case 1:
+					bg[0].bpp = 4;
+					bg[1].bpp = 4;
+					bg[2].bpp = 2;
+					break;
+
+				case 2:
+					bg[0].bpp = 4;
+					bg[1].bpp = 4;
+					break;
+
+				case 3:
+					bg[0].bpp = 8;
+					bg[1].bpp = 4;
+					break;
+
+				case 4:
+					bg[0].bpp = 8;
+					bg[1].bpp = 2;
+					break;
+
+				case 5:
+					bg[0].bpp = 4;
+					bg[1].bpp = 2;
+					break;
+
+				case 6:
+					bg[0].bpp = 4;
+					break;
+
+				case 7:
+					bg[0].bpp = 8;
+					break;
+			}
 			break;
 
 		case 0x2106:

@@ -14,7 +14,7 @@ class DMA
 		uint16_t byte_count;
 		uint8_t hdma_bank;
 		uint16_t hdma_cur_addr;
-		uint16_t hdma_rl;
+		uint8_t hdma_rl;
 		uint8_t unused;
 	} channels[8];
 

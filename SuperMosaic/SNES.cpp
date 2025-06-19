@@ -94,7 +94,15 @@ void SNES::run()
 
 		cpu.step();
 
-		if (ppu.frame_ready)
+		if (ppu.frame_ready) {
 			ppu.render();
+		
+			tick = SDL_GetTicks() - tick;
+
+			if (tick < 16) {
+				SDL_Delay(16 - tick);
+				tick = SDL_GetTicks();
+			}
+		}
 	}
 }

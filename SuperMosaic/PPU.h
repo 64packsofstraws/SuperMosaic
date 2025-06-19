@@ -15,12 +15,30 @@ class PPU
 	std::vector<uint16_t> vram;
 	std::vector<uint16_t> cgram;
 
-	std::vector<SDL_Color> framebuf;
+	struct BufMetadata {
+		SDL_Color rgb;
+		bool priority;
+		bool backdrop;
+		bool disabled;
+		uint8_t bgnum;
+	};
+
+	enum Stages {
+		PRE_RENDER,
+		RENDERING,
+		HBLANK,
+		VBLANK
+	} stage;
+
+	std::vector<BufMetadata> framebuf;
 	int x;
 	int y;
 
+	std::array<std::array<BufMetadata, 256>, 4> linebuf;
+
 	struct Background {
 		uint8_t num;
+		uint8_t bpp;
 		uint16_t tilemap_base;
 		uint16_t tileset_base;
 		uint8_t tilemap_sizex;
@@ -28,9 +46,6 @@ class PPU
 		uint16_t scrollx;
 		uint16_t scrolly;
 	} bg[4];
-
-	Background priority_vec[4];
-	int parr_len;
 
 	struct Regs {
 		uint8_t inidisp;
@@ -110,25 +125,13 @@ class PPU
 
 	SNES* snes;
 
-	void get_priority_m0();
-	void render_bgpixel_m0();
+	uint8_t get_bpp_row(uint8_t bpp, uint16_t tset_idx, uint16_t x, uint16_t y);
+	uint16_t get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum);
 
-	void get_priority_m1();
-	void render_bgpixel_m1();
+	void render_scanline();
+	void render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum);
 
-	void get_priority_m3();
-	void render_bgpixel_m3();
-
-	uint8_t get_2bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y);
-	uint8_t get_4bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y);
-	uint8_t get_8bpp_row(uint16_t tset_idx, uint16_t x, uint16_t y);
-
-	struct ModeRender {
-		void (PPU::*get_priority)();
-		void (PPU::*render_bgp)();
-	};
-
-	ModeRender mr_table[4];
+	void copy_linebufs();
 
 	SDL_Color to_rgb888(uint16_t rgb);
 public:
