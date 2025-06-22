@@ -444,6 +444,8 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 
 		case 0x212C:
 			regs.tm = val;
+			for (int i = 0; i < 4; i++)
+				bg[i].disabled = !(regs.tm & (1 << i));
 			break;
 
 		case 0x212D:

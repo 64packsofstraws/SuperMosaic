@@ -34,7 +34,7 @@ class CPU
 	uint16_t Y;
 
 	uint16_t SP;
-	uint16_t PC;
+
 	uint8_t PBR;
 	uint16_t D;
 	uint8_t DBR;
@@ -220,7 +220,7 @@ class CPU
 
 public:
 	bool nmi_pending;
-
+	uint16_t PC;
 	CPU(SNES* snes);
 
 	void tick_components(unsigned mclock);

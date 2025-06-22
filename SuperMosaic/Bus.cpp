@@ -151,7 +151,8 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x420C:
-			regs.hdmaen = val;
+			snes->dma.hdmaen = val;
+			snes->dma.hdma_init();
 			break;
 
 		case 0x420D:

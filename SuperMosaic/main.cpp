@@ -4,7 +4,7 @@
 int main(int argc, char** argv)
 {
 	SNES snes;
-	snes.load_file("C:\\Users\\Aaron Straw\\Downloads\\Rings.sfc");
+	snes.load_file("C:\\Users\\Aaron Straw\\Downloads\\WaveHDMA.sfc");
 	snes.run();
 	return 0;
  }

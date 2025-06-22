@@ -4,9 +4,7 @@
 uint8_t PPU::get_bpp_row(uint8_t bpp, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y)
 {
 	uint8_t ydir = (vram[tmap_idx] >> 15) & 1 ? 7 - (y % 8) : (y % 8);
-
 	uint16_t plane_idx = tset_idx * (bpp * 4) + ydir + (tset_idx & 0xF000);
-
 	uint8_t pal_idx = 0;
 
 	for (int i = 0; i < bpp; i++) {
@@ -38,15 +36,6 @@ uint16_t PPU::get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum
 void PPU::render_scanline()
 {
 	for (int i = 0; i < 4; i++) {
-		if (!(regs.tm & (1 << i))) {
-			BufMetadata tmp;
-			memset(&tmp, 0, sizeof(tmp));
-			tmp.disabled = tmp.backdrop = true;
-
-			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
-			continue;
-		}
-
 		render_linebuf(linebuf[i], i);
 	}
 
@@ -55,7 +44,7 @@ void PPU::render_scanline()
 
 void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 {
-	for (x = 0; x < 256; x++) {
+	for (int x = 0; x < 256; x++) {
 		uint16_t tmap_base = bg[bgnum].tilemap_base & 0x7FFF;
 		uint16_t tset_base = bg[bgnum].tileset_base & 0x7FFF;
 
@@ -79,12 +68,18 @@ void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 
 		uint16_t entry = cgram[cgram_idx];
 
+		if (bg[bgnum].disabled) {
+			linebuf[x].priority = false;
+			linebuf[x].backdrop = true;
+		}
+		else {
+			linebuf[x].priority = (vram[tmap_idx] >> 13) & 1;
+			linebuf[x].backdrop = pal_idx == 0;
+		}
+
 		linebuf[x].rgb = to_rgb888(entry);
-		linebuf[x].priority = (vram[tmap_idx] >> 13) & 1;
-		linebuf[x].backdrop = pal_idx == 0;
 		linebuf[x].bgnum = bgnum;
 	}
-	x = 0;
 }
 
 void PPU::copy_linebufs()
@@ -136,9 +131,9 @@ void PPU::copy_linebufs()
 
 			for (int i = 0; i < 256; i++) {
 				if (linebuf[0][i].priority >= linebuf[1][i].priority)
-					result = (linebuf[0][i].backdrop) ? linebuf[1][i] : linebuf[0][i];
-				else
 					result = linebuf[0][i];
+				else
+					result = linebuf[1][i];
 
 				framebuf[idx(i, y)] = result;
 			}
@@ -165,10 +160,14 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	memset(&regs, 0, sizeof(regs));
 	memset(&bg, 0, sizeof(bg));
 
-	bg[0].num = 0;
-	bg[1].num = 1;
-	bg[2].num = 2;
-	bg[3].num = 3;
+	for (auto& i : linebuf)
+		std::fill(i.begin(), i.end(), BufMetadata{});
+
+	for (int i = 0; i < 4; i++) {
+		bg[i].num = i;
+		bg[i].tilemap_sizex = 32;
+		bg[i].tilemap_sizey = 32;
+	}
 
 	stage = PRE_RENDER;
 
@@ -181,7 +180,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	frame_ready = false;
 	dot = scanline = 0;
 
-	x = y = 0;
+	y = 0;
 
 	SDL_Init(SDL_INIT_VIDEO);
 
@@ -190,7 +189,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 
 	tex = SDL_CreateTexture(
 		ren,
-		SDL_PIXELFORMAT_RGBA8888,
+		SDL_PIXELFORMAT_RGBA32,
 		SDL_TEXTUREACCESS_TARGET,
 		256 * SCALE,
 		224 * SCALE
@@ -237,6 +236,11 @@ void PPU::tick(unsigned cycles)
 					render_scanline();
 
 				stage = HBLANK;
+
+				for (int i = 0; i < 8; i++) {
+					if (snes->dma.hdma_is_enabled(i) && !snes->dma.hdma_is_terminated(i))
+						snes->dma.start_hdma_transfer(i);
+				}
 			}
 			break;
 
@@ -249,9 +253,10 @@ void PPU::tick(unsigned cycles)
 				if (scanline == 225) {
 					stage = VBLANK;
 					vblank_flag = frame_ready = true;
+					
+					snes->dma.hdma_reset();
 				}
 				else {
-					x = 0;
 					stage = PRE_RENDER;
 				}
 			}
@@ -268,10 +273,11 @@ void PPU::tick(unsigned cycles)
 				if (scanline >= 261) {
 					dot = 0;
 					scanline = 0;
-					x = y = 0;
+					y = 0;
 					vblank_flag = false;
 
 					stage = PRE_RENDER;
+					snes->dma.hdma_reset();
 				}
 			}
 			break;

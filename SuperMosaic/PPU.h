@@ -19,7 +19,6 @@ class PPU
 		SDL_Color rgb;
 		bool priority;
 		bool backdrop;
-		bool disabled;
 		uint8_t bgnum;
 	};
 
@@ -31,7 +30,6 @@ class PPU
 	} stage;
 
 	std::vector<BufMetadata> framebuf;
-	int x;
 	int y;
 
 	std::array<std::array<BufMetadata, 256>, 4> linebuf;
@@ -45,6 +43,7 @@ class PPU
 		uint8_t tilemap_sizey;
 		uint16_t scrollx;
 		uint16_t scrolly;
+		bool disabled;
 	} bg[4];
 
 	struct Regs {

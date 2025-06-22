@@ -4,12 +4,12 @@
 void DMA::dma_transfer(uint8_t idx)
 {
 	uint16_t n = channels[idx].byte_count;
-	uint8_t bank = channels[idx].dma_bank;
+	uint8_t bank = channels[idx].bank;
 
 	if (!n) n--;
 
 	int inc = 0;
-	switch ((channels[idx].dmaparam >> 3) & 3) {
+	switch ((channels[idx].dmaparam >> 3) & 0x3) {
 		case 0: inc = 1; break;
 		case 2: inc = -1; break;
 	}
@@ -150,9 +150,171 @@ void DMA::dma_transfer(uint8_t idx)
 	channels[idx].byte_count = n;
 }
 
+void DMA::hdma_transfer(uint8_t idx, int n)
+{
+	uint8_t bank = channels[idx].bank;
+	uint32_t src, dest;
+
+	if (channels[idx].dmaparam & 0x80) {
+		src = channels[idx].addressB;
+		dest = (bank << 16) | (channels[idx].hdma_cur_addr + 1);
+	}
+	else {
+		dest = channels[idx].addressB;
+		src = (bank << 16) | (channels[idx].hdma_cur_addr + 1);
+	}
+
+	switch (channels[idx].dmaparam & 0x7) {
+		case 0: {
+			uint8_t byte = snes->bus.read(src);
+			snes->bus.write(dest, byte);
+		}
+			break;
+
+		case 1: {
+			uint8_t byte = snes->bus.read(src);
+			snes->bus.write(dest, byte);
+
+			byte = snes->bus.read(src + 1);
+			snes->bus.write(dest + 1, byte);
+		}
+			break;
+
+		case 2: {
+			uint8_t byte = snes->bus.read(src);
+			snes->bus.write(dest, byte);
+
+			byte = snes->bus.read(src + 1);
+			snes->bus.write(dest, byte);
+		}
+			break;
+
+		case 3: {
+			for (int i = 0; i < 4; i++) {
+				uint8_t byte = snes->bus.read(src + i);
+				snes->bus.write(dest + (i / 2), byte);
+			}
+		}
+			break;
+
+		case 4: {
+			for (int i = 0; i < 4; i++) {
+				uint8_t byte = snes->bus.read(src + i);
+				snes->bus.write(dest + i, byte);
+			}
+		}
+			break;
+	}
+
+	for (int i = 0; i < n; i++) {
+		if (!(channels[idx].dmaparam & 0x80)) {
+			uint32_t addr = (bank << 16) | (channels[idx].hdma_cur_addr + i + 1);
+
+			uint8_t byte = snes->bus.read(addr);
+			snes->bus.write(channels[idx].addressB, byte);
+		}
+		else {
+			uint32_t addr = (bank << 16) | (channels[idx].addressB + i + 1);
+
+			uint8_t byte = snes->bus.read(addr);
+			snes->bus.write(channels[idx].hdma_cur_addr, byte);
+		}
+	}
+}
+
+void DMA::start_hdma_transfer(uint8_t idx)
+{
+	int n = 0;
+
+	switch (channels[idx].dmaparam & 0x7) {
+		case 0: n = 1; break;
+		case 1: case 2: n = 2; break;
+		case 3: case 4: n = 4; break;
+	}
+
+	if (!(channels[idx].hdma_lc & 0x7F)) {
+		channels[idx].hdma_cur_addr += n + 1;
+
+		channels[idx].hdma_lc = snes->bus.read((channels[idx].bank << 16) | channels[idx].hdma_cur_addr);
+
+		if (!channels[idx].hdma_lc) {
+			channels[idx].hdma_terminated = true;
+			return;
+		}
+
+		if (!(channels[idx].hdma_lc & 0x80)) {
+			write_once = true;
+		}
+	}
+
+	bool repeat_mode = channels[idx].hdma_lc & 0x80;
+
+	if (repeat_mode) {
+		hdma_transfer(idx, n);
+	}
+	else if (!repeat_mode && write_once) {
+		hdma_transfer(idx, n);
+		write_once = false;
+	}
+
+	channels[idx].hdma_lc--;
+}
+
+void DMA::hdma_init()
+{
+	for (int i = 0; i < 8; i++) {
+		if (hdmaen & (1 << i)) {
+			channels[i].hdma_cur_addr = channels[i].addressA;
+			channels[i].hdma_lc = snes->bus.read((channels[i].bank << 16) | channels[i].hdma_cur_addr);
+			
+			if (!(channels[i].hdma_lc & 0x80)) write_once = true;
+
+			org_lc = channels[i].hdma_lc;
+			channels[i].hdma_enabled = true;
+			channels[i].hdma_terminated = true;
+		}
+		else {
+			channels[i].hdma_enabled = false;
+			channels[i].hdma_terminated = false;
+		}
+	}
+}
+
+void DMA::hdma_reset()
+{
+	for (int i = 0; i < 8; i++) {
+		if (channels[i].hdma_enabled) {
+			channels[i].hdma_cur_addr = channels[i].addressA;
+			channels[i].hdma_lc = snes->bus.read((channels[i].bank << 16) | channels[i].hdma_cur_addr);
+
+			if (!(channels[i].hdma_lc & 0x80)) write_once = true;
+			channels[i].hdma_terminated = false;
+		}
+	}
+}
+
+bool DMA::hdma_is_enabled(uint8_t idx) const
+{
+	return channels[idx].hdma_enabled;
+}
+
+bool DMA::hdma_is_terminated(uint8_t idx) const
+{
+	return channels[idx].hdma_terminated;
+}
+
 DMA::DMA(SNES* snes) : snes(snes)
 {
 	memset(channels, 0xFF, sizeof(channels));
+	hdmaen = 0;
+	scanlines_waited = 0;
+	org_lc = 0;
+	write_once = false;
+}
+
+uint8_t DMA::get_hdma_lc(uint8_t idx)
+{
+	return channels[idx].hdma_lc;
 }
 
 uint8_t DMA::read_reg(uint16_t addr)
@@ -170,10 +332,10 @@ uint8_t DMA::read_reg(uint16_t addr)
 			return tmp.addressA & 0xFF;
 
 		case 0x3:
-			return tmp.addressA >> 8 & 0xFF;
+			return (tmp.addressA >> 8) & 0xFF;
 
 		case 0x4:
-			return tmp.dma_bank;
+			return tmp.bank;
 
 		case 0x5:
 			return tmp.byte_count & 0xFF;
@@ -182,7 +344,7 @@ uint8_t DMA::read_reg(uint16_t addr)
 			return (tmp.byte_count >> 8) & 0xFF;
 
 		case 0x7:
-			return tmp.hdma_bank;
+			return tmp.hdma_ind_bank;
 
 		case 0x8:
 			return tmp.hdma_cur_addr & 0xFF;
@@ -191,7 +353,7 @@ uint8_t DMA::read_reg(uint16_t addr)
 			return (tmp.hdma_cur_addr >> 8) & 0xFF;
 
 		case 0xA:
-			return tmp.hdma_rl;
+			return tmp.hdma_lc;
 
 		case 0xB:
 			return tmp.unused;
@@ -213,15 +375,15 @@ void DMA::write_reg(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x2:
-			tmp.addressA = (tmp.addressA & 0xFFFF00) | val;
+			tmp.addressA = (tmp.addressA & 0xFF00) | val;
 			break;
 
 		case 0x3:
-			tmp.addressA = (tmp.addressA & 0xFF00FF) | (val << 8);
+			tmp.addressA = (tmp.addressA & 0x00FF) | (val << 8);
 			break;
 
 		case 0x4:
-			tmp.dma_bank = val;
+			tmp.bank = val;
 			break;
 
 		case 0x5:
@@ -233,7 +395,7 @@ void DMA::write_reg(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x7:
-			tmp.hdma_bank = val;
+			tmp.hdma_ind_bank = val;
 			break;
 
 		case 0x8:
@@ -245,7 +407,7 @@ void DMA::write_reg(uint16_t addr, uint8_t val)
 			break;
 
 		case 0xA:
-			tmp.hdma_rl = val;
+			tmp.hdma_lc = val;
 			break;
 
 		case 0xB:
