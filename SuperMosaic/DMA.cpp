@@ -150,7 +150,7 @@ void DMA::dma_transfer(uint8_t idx)
 	channels[idx].byte_count = n;
 }
 
-void DMA::hdma_transfer(uint8_t idx, int n)
+void DMA::hdma_transfer(uint8_t idx)
 {
 	uint8_t bank = channels[idx].bank;
 	uint32_t src, dest;
@@ -205,21 +205,6 @@ void DMA::hdma_transfer(uint8_t idx, int n)
 		}
 			break;
 	}
-
-	for (int i = 0; i < n; i++) {
-		if (!(channels[idx].dmaparam & 0x80)) {
-			uint32_t addr = (bank << 16) | (channels[idx].hdma_cur_addr + i + 1);
-
-			uint8_t byte = snes->bus.read(addr);
-			snes->bus.write(channels[idx].addressB, byte);
-		}
-		else {
-			uint32_t addr = (bank << 16) | (channels[idx].addressB + i + 1);
-
-			uint8_t byte = snes->bus.read(addr);
-			snes->bus.write(channels[idx].hdma_cur_addr, byte);
-		}
-	}
 }
 
 void DMA::start_hdma_transfer(uint8_t idx)
@@ -250,10 +235,10 @@ void DMA::start_hdma_transfer(uint8_t idx)
 	bool repeat_mode = channels[idx].hdma_lc & 0x80;
 
 	if (repeat_mode) {
-		hdma_transfer(idx, n);
+		hdma_transfer(idx);
 	}
 	else if (!repeat_mode && write_once) {
-		hdma_transfer(idx, n);
+		hdma_transfer(idx);
 		write_once = false;
 	}
 

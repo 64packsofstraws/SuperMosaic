@@ -34,7 +34,7 @@ public:
 	uint8_t get_hdma_lc(uint8_t idx);
 
 	void dma_transfer(uint8_t idx);
-	void hdma_transfer(uint8_t idx, int n);
+	void hdma_transfer(uint8_t idx);
 
 	void start_hdma_transfer(uint8_t idx);
 
