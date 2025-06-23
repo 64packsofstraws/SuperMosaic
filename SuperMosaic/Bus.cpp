@@ -3,13 +3,20 @@
 
 uint8_t Bus::read_regs(uint16_t addr)
 {
-	switch (addr) {
-		case 0x2140:
-		case 0x2141:
-		case 0x2142:
-		case 0x2143:
-			return regs.apuio[addr & 0x3];
+	if (addr >= 0x2140 && addr <= 0x217F) {
+		uint8_t idx = (addr - 0x2140) % 4;
+		uint8_t tmp = regs.apuio[idx];
 
+		switch (idx) {
+			case 0: regs.apuio[idx] = 0xAA; break;
+			case 1: regs.apuio[idx] = 0xBB;	break;
+			default: regs.apuio[idx] = 0x0;
+		}
+
+		return tmp;
+	}
+
+	switch (addr) {
 		case 0x2180:
 			return wram[wram_addr++];
 
@@ -54,14 +61,12 @@ uint8_t Bus::read_regs(uint16_t addr)
 
 void Bus::write_regs(uint16_t addr, uint8_t val)
 {
-	switch (addr) {
-		case 0x2140:
-		case 0x2141:
-		case 0x2142:
-		case 0x2143:
-			regs.apuio[addr & 0x3] = val;
-			break;
+	if (addr >= 0x2140 && addr <= 0x217F) {
+		regs.apuio[(addr - 0x2140) % 4] = val;
+		return;
+	}
 
+	switch (addr) {
 		case 0x2180:
 			wram[wram_addr++] = val;
 			break;
@@ -164,6 +169,11 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 Bus::Bus(SNES* snes) : snes(snes), wram(0x20000, 0)
 {
 	memset(&regs, 0, sizeof(regs));
+	regs.apuio[0] = 0xAA;
+	regs.apuio[1] = 0;
+	regs.apuio[2] = 0;
+	regs.apuio[3] = 0;
+
 	wram_addr = 0;
 	mdr = 0;
 }
