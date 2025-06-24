@@ -29,7 +29,7 @@ class PPU
 		VBLANK
 	} stage;
 
-	std::vector<BufMetadata> framebuf;
+	std::vector<SDL_Color> framebuf;
 	int y;
 
 	std::array<std::array<BufMetadata, 256>, 4> linebuf;

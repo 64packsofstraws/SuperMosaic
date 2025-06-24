@@ -1555,7 +1555,7 @@ uint8_t CPU::TSB()
 uint8_t CPU::WAI()
 {
 	tick_components(6);
-	if (!nmi_pending) PC--;
+	if (!nmi_pending || !irq_pending) PC--;
 	return 0;
 }
 

@@ -26,7 +26,7 @@ uint16_t PPU::get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum
 
 	switch (regs.bgmode & 0x7) {
 		case 0: cgram_idx = 32 * bgnum + 4 * tmap_pal + pal_idx; break;
-		case 1: cgram_idx = ((bgnum == 3) ? 4 : 16) * tmap_pal + pal_idx; break;
+		case 1: cgram_idx = ((bgnum == 2) ? 4 : 16) * tmap_pal + pal_idx; break;
 		case 3: cgram_idx = (bgnum == 1) ? 16 * tmap_pal + pal_idx : pal_idx; break;
 	}
 
@@ -105,7 +105,7 @@ void PPU::copy_linebufs()
 
 				tmp = (result[0].backdrop && result[0].bgnum != last_bg) ? result[1] : result[0];
 
-				framebuf[idx(i, y)] = tmp;
+				framebuf[idx(i, y)] = tmp.rgb;
 			}
 		}
 			break;
@@ -117,11 +117,11 @@ void PPU::copy_linebufs()
 				if (linebuf[0][i].priority >= linebuf[1][i].priority)
 					result = (linebuf[0][i].backdrop && linebuf[0][i].bgnum != last_bg) ? linebuf[1][i] : linebuf[0][i];
 				else
-					result = linebuf[0][i];
+					result = linebuf[1][i];
 
 				BufMetadata bg3 = linebuf[2][i];
 			
-				framebuf[idx(i, y)] = (bg3.priority && regs.bgmode & 0x8 && !bg3.backdrop) ? bg3 : result;
+				framebuf[idx(i, y)] = (bg3.priority && (regs.bgmode & 0x8) && !bg3.backdrop) ? bg3.rgb : result.rgb;
 			}
 		}
 			break;
@@ -135,7 +135,7 @@ void PPU::copy_linebufs()
 				else
 					result = linebuf[1][i];
 
-				framebuf[idx(i, y)] = result;
+				framebuf[idx(i, y)] = result.rgb;
 			}
 		}
 			  break;
@@ -159,9 +159,6 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 {
 	memset(&regs, 0, sizeof(regs));
 	memset(&bg, 0, sizeof(bg));
-
-	for (auto& i : linebuf)
-		std::fill(i.begin(), i.end(), BufMetadata{});
 
 	for (int i = 0; i < 4; i++) {
 		bg[i].num = i;
@@ -222,7 +219,49 @@ void PPU::set_nmi_enable(bool val)
 
 void PPU::tick(unsigned cycles)
 {
-	dot += cycles;
+	for (int i = 0; i < cycles; i++) {
+		uint8_t nmititen = snes->bus.regs.nmitimen;
+		uint16_t htime = snes->bus.regs.htime;
+		uint16_t vtime = snes->bus.regs.vtime;
+
+		switch ((nmititen >> 4) & 0x3) {
+			case 1:
+				if (dot == htime) {
+					snes->cpu.irq_pending = true;
+					snes->bus.regs.timeup |= 0x80;
+				}
+				else {
+					snes->cpu.irq_pending = false;
+					snes->bus.regs.timeup &= ~0x80;
+				}
+				break;
+
+			case 2:
+				if (scanline == vtime && dot == 0) {
+					snes->cpu.irq_pending = true;
+					snes->bus.regs.timeup |= 0x80;
+				}
+				else {
+					snes->cpu.irq_pending = false;
+					snes->bus.regs.timeup &= ~0x80;
+				}
+				break;
+
+			case 3:
+				if (scanline == vtime && dot == htime) {
+					snes->cpu.irq_pending = true;
+					snes->bus.regs.timeup |= 0x80;
+				}
+				else {
+					snes->cpu.irq_pending = false;
+					snes->bus.regs.timeup &= ~0x80;
+				}
+				break;
+		}
+
+		dot++;
+	}
+
 
 	switch (stage) {
 		case PRE_RENDER:
@@ -236,6 +275,7 @@ void PPU::tick(unsigned cycles)
 				if (scanline >= 1 && scanline <= 224)
 					render_scanline();
 
+				snes->bus.regs.hvbjoy |= 0x40;
 				stage = HBLANK;
 
 				for (int i = 0; i < 8; i++) {
@@ -254,10 +294,13 @@ void PPU::tick(unsigned cycles)
 				if (scanline == 225) {
 					stage = VBLANK;
 					vblank_flag = frame_ready = true;
-					
+					snes->bus.regs.hvbjoy |= 0x80;
+					snes->bus.regs.hvbjoy &= ~0x40;
+
 					snes->dma.hdma_reset();
 				}
 				else {
+					snes->bus.regs.hvbjoy &= ~0x40;
 					stage = PRE_RENDER;
 				}
 			}
@@ -275,11 +318,12 @@ void PPU::tick(unsigned cycles)
 					dot = 0;
 					scanline = 0;
 					y = 0;
+					snes->bus.regs.rdnmi &= 0x7F;
 					vblank_flag = false;
+					snes->bus.regs.hvbjoy &= ~0x80;
 
 					stage = PRE_RENDER;
 					snes->dma.hdma_reset();
-					//printf("%04X\n", snes->cpu.PC);
 				}
 			}
 			break;
@@ -296,7 +340,7 @@ void PPU::render()
 
 	for (int y = 0; y < 224; y++) {
 		for (int x = 0; x < 256; x++) {
-			SDL_Color rgb = framebuf[idx(x, y)].rgb;
+			SDL_Color rgb = framebuf[idx(x, y)];
 			float brightness = static_cast<float>(regs.inidisp & 0xF) / 15.0f;
 			
 			if (regs.inidisp & 0x80) {
@@ -307,10 +351,10 @@ void PPU::render()
 				rgb.g = static_cast<uint8_t>(rgb.g * brightness);
 				rgb.b = static_cast<uint8_t>(rgb.b * brightness);
 			}
-
+		
 			SDL_SetRenderDrawColor(ren, rgb.r, rgb.g, rgb.b, rgb.a);
 			SDL_RenderFillRect(ren, &rect);
-		
+
 			rect.x += SCALE;
 		}
 

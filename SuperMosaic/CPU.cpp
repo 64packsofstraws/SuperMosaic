@@ -314,6 +314,10 @@ void CPU::tick_components(unsigned mclock)
 
 void CPU::step()
 {
+	if (FULL_PC == 0x4400) {
+		printf("break");
+	}
+
 	opcode = read8(FULL_PC);
 	PC++;
 	
@@ -321,6 +325,8 @@ void CPU::step()
 	(this->*ins_table[opcode].ins)();
 
 	if (nmi_pending) nmi();
+
+	if (irq_pending && !GET_I()) irq();
 }
 
 void CPU::nmi()
@@ -330,9 +336,25 @@ void CPU::nmi()
 	push8(status);
 
 	SET_D(0);
+	PBR = 0;
 	PC = read16(0xFFEA);
 
 	nmi_pending = false;
+	snes->bus.regs.nmitimen &= 0x7F;
+	snes->ppu.set_nmi_enable(false);
+}
+
+void CPU::irq()
+{
+	push8(PBR);
+	push16(PC);
+	push8(status);
+
+	SET_D(0);
+	PBR = 0;
+	PC = read16(0xFFEE);
+
+	irq_pending = false;
 }
 
 void CPU::reset()

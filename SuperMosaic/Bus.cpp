@@ -49,11 +49,21 @@ uint8_t Bus::read_regs(uint16_t addr)
 		case 0x421F:
 			return 0;
 
-		case 0x4210:
+		case 0x4210: {
 			uint8_t tmp = regs.rdnmi ^ (snes->ppu.get_vblank_flag() << 7);
 			snes->ppu.set_vblank_flag(false);
 			regs.rdnmi &= 0x7F;
 			return tmp;
+		}
+
+		case 0x4211: {
+			uint8_t tmp = regs.timeup;
+			regs.timeup &= 0x7F;
+			return tmp;
+		}
+		
+		case 0x4212:
+			return regs.hvbjoy;
 	}
 
 	return mdr;
@@ -145,6 +155,22 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 			regs.rdmpyh = remainder >> 8;
 			regs.rdmpyl = remainder & 0xFF;
 		}
+			break;
+
+		case 0x4207:
+			regs.htime = (regs.vtime & 0xFF00) | val;
+			break;
+
+		case 0x4208:
+			regs.htime = (regs.vtime & 0x00FF) | ((val & 1) << 8);
+			break;
+
+		case 0x4209:
+			regs.vtime = (regs.vtime & 0xFF00) | val;
+			break;
+
+		case 0x420A:
+			regs.vtime = (regs.vtime & 0x00FF) | ((val & 1) << 8);
 			break;
 
 		case 0x420B:

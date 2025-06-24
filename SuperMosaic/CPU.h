@@ -35,7 +35,7 @@ class CPU
 
 	uint16_t SP;
 
-	uint8_t PBR;
+
 	uint16_t D;
 	uint8_t DBR;
 
@@ -220,6 +220,8 @@ class CPU
 
 public:
 	bool nmi_pending;
+	bool irq_pending;
+	uint8_t PBR;
 	uint16_t PC;
 	CPU(SNES* snes);
 
@@ -228,6 +230,7 @@ public:
 	void step();
 
 	void nmi();
+	void irq();
 	void reset();
 
 	uint8_t read8(uint32_t addr);

@@ -26,10 +26,8 @@ class Bus
 		uint8_t wrdivl;
 		uint8_t wrdivh;
 		uint8_t wrdivb;
-		uint8_t htimel;
-		uint8_t htimeh;
-		uint8_t vtimel;
-		uint8_t vtimeh;
+		uint16_t htime;
+		uint16_t vtime;
 		uint8_t mdmaen;
 		uint8_t hdmaen;
 		uint8_t memsel;
@@ -42,7 +40,7 @@ class Bus
 		uint8_t rdmpyl;
 		uint8_t rdmpyh;
 		uint16_t joy1;
-	} regs;
+	};
 
 	uint32_t wram_addr;
 
@@ -52,6 +50,8 @@ class Bus
 	void write_regs(uint16_t addr, uint8_t val);
 
 public:
+	Regs regs;
+	
 	Bus(SNES* snes);
 
 	void handle_joyp_in(SDL_Keycode k);
