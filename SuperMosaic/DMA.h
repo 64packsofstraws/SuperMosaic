@@ -11,7 +11,7 @@ class DMA
 		uint16_t addressB;
 		uint16_t addressA;
 		uint8_t bank;
-		uint16_t byte_count;
+		uint16_t das;
 		uint8_t hdma_ind_bank;
 		uint16_t hdma_cur_addr;
 		uint8_t hdma_lc;
@@ -35,6 +35,7 @@ public:
 
 	void dma_transfer(uint8_t idx);
 	void hdma_transfer(uint8_t idx);
+	void ind_hdma_transfer(uint8_t idx);
 
 	void start_hdma_transfer(uint8_t idx);
 

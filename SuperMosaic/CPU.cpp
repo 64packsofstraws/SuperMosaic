@@ -314,10 +314,6 @@ void CPU::tick_components(unsigned mclock)
 
 void CPU::step()
 {
-	if (FULL_PC == 0x4400) {
-		printf("break");
-	}
-
 	opcode = read8(FULL_PC);
 	PC++;
 	

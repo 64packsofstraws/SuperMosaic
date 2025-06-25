@@ -14,6 +14,7 @@ class PPU
 {
 	std::vector<uint16_t> vram;
 	std::vector<uint16_t> cgram;
+	std::vector<uint8_t> oam;
 
 	struct BufMetadata {
 		SDL_Color rgb;
@@ -112,6 +113,7 @@ class PPU
 	uint16_t vram_addr;
 	unsigned vram_inc;
 	bool cgreg_write;
+	bool counter_latch;
 
 	uint8_t mdr;
 

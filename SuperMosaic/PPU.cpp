@@ -172,6 +172,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	mdr = 0;
 	vram_addr = vram_inc = 0;
 	cgreg_write = false;
+	counter_latch = false;
 
 	vblank_scanline = 224;
 	vblank_flag = nmi_enable = false;
@@ -272,8 +273,11 @@ void PPU::tick(unsigned cycles)
 
 		case RENDERING:
 			if (dot >= 278) {
-				if (scanline >= 1 && scanline <= 224)
+				if (scanline >= 1 && scanline <= 224) {
 					render_scanline();
+
+					if (scanline == 224) frame_ready = true;
+				}
 
 				snes->bus.regs.hvbjoy |= 0x40;
 				stage = HBLANK;
@@ -291,9 +295,9 @@ void PPU::tick(unsigned cycles)
 				scanline++;
 				y = scanline - 1;
 
-				if (scanline == 225) {
+				if (scanline == vblank_scanline) {
 					stage = VBLANK;
-					vblank_flag = frame_ready = true;
+					vblank_flag = true;
 					snes->bus.regs.hvbjoy |= 0x80;
 					snes->bus.regs.hvbjoy &= ~0x40;
 

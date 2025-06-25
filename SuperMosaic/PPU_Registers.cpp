@@ -51,6 +51,29 @@ uint8_t PPU::read_reg(uint16_t addr)
 				regs.cgadd++;
 				return (regs.cgdataread >> 8) & 0x7F;
 			}
+			break;
+
+		case 0x213C:
+			if (!counter_latch) {
+				counter_latch = true;
+				return dot & 0xFF;
+			}
+			else {
+				counter_latch = false;
+				return (dot >> 8) & 0xFF;
+			}
+			break;
+
+		case 0x213D:
+			if (!counter_latch) {
+				counter_latch = true;
+				return scanline & 0xFF;
+			}
+			else {
+				counter_latch = false;
+				return (scanline >> 8) & 0xFF;
+			}
+			break;
 	}
 	return 0;
 }
@@ -476,6 +499,10 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			regs.setini = val;
 
 			vblank_scanline = (regs.setini & 0x4) ? 240 : 225;
+			break;
+
+		case 0x2137:
+			counter_latch = true;
 			break;
 	}
 }
