@@ -45,6 +45,9 @@
     <ClCompile Include="PPU_Registers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Joypad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CPU.h">
@@ -63,6 +66,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DMA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Joypad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

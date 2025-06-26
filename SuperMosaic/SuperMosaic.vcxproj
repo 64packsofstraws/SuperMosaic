@@ -142,6 +142,7 @@
     <ClCompile Include="CPU_AddrModes.cpp" />
     <ClCompile Include="CPU_Instructions.cpp" />
     <ClCompile Include="DMA.cpp" />
+    <ClCompile Include="Joypad.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PPU.cpp" />
     <ClCompile Include="PPU_Registers.cpp" />
@@ -152,6 +153,7 @@
     <ClInclude Include="Cartridge.h" />
     <ClInclude Include="CPU.h" />
     <ClInclude Include="DMA.h" />
+    <ClInclude Include="Joypad.h" />
     <ClInclude Include="PPU.h" />
     <ClInclude Include="SNES.h" />
   </ItemGroup>

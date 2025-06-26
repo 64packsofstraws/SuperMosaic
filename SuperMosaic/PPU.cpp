@@ -84,6 +84,11 @@ void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 
 void PPU::copy_linebufs()
 {
+	if (regs.inidisp & 0x80) {
+		std::fill(framebuf.begin() + idx(0, y), framebuf.begin() + idx(255, y), 0);
+		return;
+	}
+
 	int last_bg = 0;
 
 	for (int i = 0; i < 4; i++) {
@@ -131,7 +136,7 @@ void PPU::copy_linebufs()
 
 			for (int i = 0; i < 256; i++) {
 				if (linebuf[0][i].priority >= linebuf[1][i].priority)
-					result = linebuf[0][i];
+					result = (linebuf[0][i].backdrop && linebuf[0][i].bgnum != last_bg) ? linebuf[1][i] : linebuf[0][i];
 				else
 					result = linebuf[1][i];
 
@@ -142,20 +147,26 @@ void PPU::copy_linebufs()
 	}
 }
 
-SDL_Color PPU::to_rgb888(uint16_t rgb)
+uint32_t PPU::to_rgb888(uint16_t rgb)
 {
 	uint8_t r = rgb & 0x3F;
 	uint8_t g = (rgb >> 5) & 0x3F;
 	uint8_t b = (rgb >> 10) & 0x3F;
 
+	float brightness = static_cast<float>(regs.inidisp & 0xF) / 15.0f;
+
 	r = (r << 3) | (r >> 2);
 	g = (g << 3) | (g >> 2);
 	b = (b << 3) | (b >> 2);
 
-	return { r, g, b, 255 };
+	r = static_cast<uint8_t>(r * brightness);
+	g = static_cast<uint8_t>(g * brightness);
+	b = static_cast<uint8_t>(b * brightness);
+
+	return (r << 24) | (g << 16) | (b << 8) | 0xFF;
 }
 
-PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 * 224, {0, 0, 0})
+PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 * 224, 0)
 {
 	memset(&regs, 0, sizeof(regs));
 	memset(&bg, 0, sizeof(bg));
@@ -188,11 +199,13 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 
 	tex = SDL_CreateTexture(
 		ren,
-		SDL_PIXELFORMAT_RGBA32,
-		SDL_TEXTUREACCESS_TARGET,
-		256 * SCALE,
-		224 * SCALE
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_STREAMING,
+		256,
+		224
 	);
+
+	SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
 }
 
 PPU::~PPU()
@@ -300,6 +313,7 @@ void PPU::tick(unsigned cycles)
 					vblank_flag = true;
 					snes->bus.regs.hvbjoy |= 0x80;
 					snes->bus.regs.hvbjoy &= ~0x40;
+					snes->joypad.update_autoread();
 
 					snes->dma.hdma_reset();
 				}
@@ -321,7 +335,7 @@ void PPU::tick(unsigned cycles)
 				if (scanline >= 261) {
 					dot = 0;
 					scanline = 0;
-					y = 0;
+					y = scanline - 1;
 					snes->bus.regs.rdnmi &= 0x7F;
 					vblank_flag = false;
 					snes->bus.regs.hvbjoy &= ~0x80;
@@ -336,39 +350,9 @@ void PPU::tick(unsigned cycles)
 
 void PPU::render()
 {
-	SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+	SDL_UpdateTexture(tex, NULL, framebuf.data(), 256 * sizeof(uint32_t));
 	SDL_RenderClear(ren);
-	SDL_SetRenderTarget(ren, tex);
-
-	SDL_FRect rect = { 0.0, 0.0, SCALE, SCALE };
-
-	for (int y = 0; y < 224; y++) {
-		for (int x = 0; x < 256; x++) {
-			SDL_Color rgb = framebuf[idx(x, y)];
-			float brightness = static_cast<float>(regs.inidisp & 0xF) / 15.0f;
-			
-			if (regs.inidisp & 0x80) {
-				rgb.r = rgb.g = rgb.b = 0;
-			}
-			else {
-				rgb.r = static_cast<uint8_t>(rgb.r * brightness);
-				rgb.g = static_cast<uint8_t>(rgb.g * brightness);
-				rgb.b = static_cast<uint8_t>(rgb.b * brightness);
-			}
-		
-			SDL_SetRenderDrawColor(ren, rgb.r, rgb.g, rgb.b, rgb.a);
-			SDL_RenderFillRect(ren, &rect);
-
-			rect.x += SCALE;
-		}
-
-		rect.y += SCALE;
-		rect.x = 0;
-	}
-
-	SDL_SetRenderTarget(ren, nullptr);
-	SDL_RenderTexture(ren, tex, nullptr, nullptr);
-
+	SDL_RenderTexture(ren, tex, NULL, NULL);
 	SDL_RenderPresent(ren);
 
 	frame_ready = false;

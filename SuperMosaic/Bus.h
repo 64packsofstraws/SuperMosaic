@@ -1,7 +1,6 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include <SDL3/SDL_keycode.h>
 
 class SNES;
 
@@ -42,6 +41,8 @@ class Bus
 		uint16_t joy1;
 	};
 
+	uint16_t shift_reg;
+
 	uint32_t wram_addr;
 
 	uint8_t mdr;
@@ -54,9 +55,9 @@ public:
 	
 	Bus(SNES* snes);
 
-	void handle_joyp_in(SDL_Keycode k);
-	void handle_joyp_out(SDL_Keycode k);
-
 	uint8_t read(uint32_t addr);
 	void write(uint32_t addr, uint8_t val);
+
+	uint8_t read_noticks(uint32_t addr);
+	void write_noticks(uint32_t addr, uint8_t val);
 };

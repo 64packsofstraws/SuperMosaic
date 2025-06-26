@@ -17,7 +17,7 @@ class PPU
 	std::vector<uint8_t> oam;
 
 	struct BufMetadata {
-		SDL_Color rgb;
+		uint32_t rgb;
 		bool priority;
 		bool backdrop;
 		uint8_t bgnum;
@@ -30,7 +30,7 @@ class PPU
 		VBLANK
 	} stage;
 
-	std::vector<SDL_Color> framebuf;
+	std::vector<uint32_t> framebuf;
 	int y;
 
 	std::array<std::array<BufMetadata, 256>, 4> linebuf;
@@ -134,7 +134,7 @@ class PPU
 
 	void copy_linebufs();
 
-	SDL_Color to_rgb888(uint16_t rgb);
+	uint32_t to_rgb888(uint16_t rgb);
 public:
 	SDL_Window* win;
 	SDL_Renderer* ren;

@@ -9,8 +9,7 @@
 #include "Bus.h"
 #include "PPU.h"
 #include "DMA.h"
-
-#define PRINT(expr) #expr
+#include "Joypad.h"
 
 class SNES
 {
@@ -34,6 +33,7 @@ public:
 	CPU cpu;
 	Bus bus;
 	DMA dma;
+	Joypad joypad;
 
 	SNES();
 

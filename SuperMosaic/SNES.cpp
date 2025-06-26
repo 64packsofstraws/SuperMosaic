@@ -9,7 +9,7 @@ bool SNES::is_title(std::vector<uint8_t>& rom, uint16_t addr)
 	return true;
 }
 
-SNES::SNES() : cpu(this), bus(this), ppu(this), dma(this)
+SNES::SNES() : cpu(this), bus(this), ppu(this), dma(this), joypad(this)
 {
 	memset(&header, 0, sizeof(header));
 }
@@ -81,7 +81,7 @@ void SNES::run()
 {
 	bool running = true;
 	SDL_Event e;
-	Uint64 tick = SDL_GetTicks();
+	Uint64 start, end;
 
 	while (running) {
 		while (SDL_PollEvent(&e)) {
@@ -91,25 +91,19 @@ void SNES::run()
 					break;
 
 				case SDL_EVENT_KEY_DOWN:
-					bus.handle_joyp_in(e.key.key);
+					joypad.handle_joyp_in(e.key.key);
 					break;
 
 				case SDL_EVENT_KEY_UP:
-					bus.handle_joyp_out(e.key.key);
+					joypad.handle_joyp_out(e.key.key);
 			}
 		}
 
-		cpu.step();
+		while (!ppu.frame_ready)
+			cpu.step();
 
-		if (ppu.frame_ready) {
-			ppu.render();
-		
-			tick = SDL_GetTicks() - tick;
+		ppu.render();
 
-			if (tick < 16) {
-				SDL_Delay(16 - tick);
-				tick = SDL_GetTicks();
-			}
-		}
+		SDL_Delay(15);
 	}
 }

@@ -314,6 +314,12 @@ void CPU::tick_components(unsigned mclock)
 
 void CPU::step()
 {
+	/*
+	if (PC == 0xb434) {
+		printf("asdads");
+	}
+	*/
+
 	opcode = read8(FULL_PC);
 	PC++;
 	

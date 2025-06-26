@@ -21,7 +21,7 @@ uint8_t Bus::read_regs(uint16_t addr)
 			return wram[wram_addr++];
 
 		case 0x4016:
-			return regs.joyser0;
+			return snes->joypad.get_serinput();
 
 		case 0x4214:
 			return regs.rddivl;
@@ -96,9 +96,14 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 			wram_addr = (wram_addr & 0xFFFF00) | regs.wmaddl;
 			break;
 
-		case 0x4016:
-			regs.joyout = val;
-			break;
+		case 0x4016: {
+			static bool prev_strobe = 1;
+
+			if (val & 1 && prev_strobe == 0) {
+				snes->joypad.update_shiftreg();
+			}
+		}
+		   break;
 
 		case 0x4200:
 			regs.nmitimen = val;
@@ -200,48 +205,9 @@ Bus::Bus(SNES* snes) : snes(snes), wram(0x20000, 0)
 	regs.apuio[2] = 0;
 	regs.apuio[3] = 0;
 
+	shift_reg = 0;
 	wram_addr = 0;
 	mdr = 0;
-}
-
-void Bus::handle_joyp_in(SDL_Keycode k)
-{
-	switch (k) {
-		case SDLK_W: regs.joy1 |= (1 << 4); break;
-		case SDLK_Q: regs.joy1 |= (1 << 5); break;
-		case SDLK_S: regs.joy1 |= (1 << 6); break;
-		case SDLK_A: regs.joy1 |= (1 << 7); break;
-
-		case SDLK_RIGHT: regs.joy1 |= (1 << 8); break;
-		case SDLK_LEFT: regs.joy1 |= (1 << 9); break;
-		case SDLK_DOWN: regs.joy1 |= (1 << 10); break;
-		case SDLK_UP: regs.joy1 |= (1 << 11); break;
-
-		case SDLK_RETURN: regs.joy1 |= (1 << 12); break;
-		case SDLK_SPACE: regs.joy1 |= (1 << 13); break;
-		case SDLK_X: regs.joy1 |= (1 << 14); break;
-		case SDLK_Z: regs.joy1 |= (1 << 15); break;
-	}
-}
-
-void Bus::handle_joyp_out(SDL_Keycode k)
-{
-	switch (k) {
-		case SDLK_W: regs.joy1 &= ~(1 << 4); break;
-		case SDLK_Q: regs.joy1 &= ~(1 << 5); break;
-		case SDLK_S: regs.joy1 &= ~(1 << 6); break;
-		case SDLK_A: regs.joy1 &= ~(1 << 7); break;
-
-		case SDLK_RIGHT: regs.joy1 &= ~(1 << 8); break;
-		case SDLK_LEFT: regs.joy1 &= ~(1 << 9); break;
-		case SDLK_DOWN: regs.joy1 &= ~(1 << 10); break;
-		case SDLK_UP: regs.joy1 &= ~(1 << 11); break;
-
-		case SDLK_RETURN: regs.joy1 &= ~(1 << 12); break;
-		case SDLK_SPACE: regs.joy1 &= ~(1 << 13); break;
-		case SDLK_X: regs.joy1 &= ~(1 << 14); break;
-		case SDLK_Z: regs.joy1 &= ~(1 << 15); break;
-	}
 }
 
 uint8_t Bus::read(uint32_t addr)
@@ -304,6 +270,61 @@ void Bus::write(uint32_t addr, uint8_t val)
 	}
 	if (bank >= 0x7E && bank <= 0x7F) {
 		snes->cpu.tick_components(8);
+		wram[addr - 0x7E0000] = val;
+	}
+
+	mdr = val;
+}
+
+uint8_t Bus::read_noticks(uint32_t addr)
+{
+	uint8_t bank = (addr >> 16) & 0xFF;
+	uint16_t lower_word = addr & 0xFFFF;
+
+	if (bank >= 0x0 && bank <= 0x3F || bank >= 0x80 && bank <= 0xBF) {
+		if (lower_word < 0x2000) {
+			mdr = wram[lower_word];
+		}
+		else if (lower_word >= 0x2100 && lower_word <= 0x213F) {
+			mdr = snes->ppu.read_reg(lower_word);
+		}
+		else if (lower_word >= 0x2140 && lower_word <= 0x421F) {
+			mdr = read_regs(lower_word);
+		}
+		else if (lower_word >= 0x4300 && lower_word <= 0x437F) {
+			mdr = snes->dma.read_reg(lower_word);
+		}
+	}
+	if (bank >= 0x7E && bank <= 0x7F) {
+		mdr = wram[addr - 0x7E0000];
+	}
+	if (snes->cart->in_range(addr)) {
+		mdr = snes->cart->read(addr);
+	}
+
+	return mdr;
+}
+
+void Bus::write_noticks(uint32_t addr, uint8_t val)
+{
+	uint8_t bank = (addr >> 16) & 0xFF;
+	uint16_t lower_word = addr & 0xFFFF;
+
+	if (bank >= 0x0 && bank <= 0x3F || bank >= 0x80 && bank <= 0xBF) {
+		if (lower_word < 0x2000) {
+			wram[lower_word] = val;
+		}
+		else if (lower_word >= 0x2100 && lower_word <= 0x213F) {
+			snes->ppu.write_reg(lower_word, val);
+		}
+		else if (lower_word >= 0x2140 && lower_word <= 0x421F) {
+			write_regs(lower_word, val);
+		}
+		else if (lower_word >= 0x4300 && lower_word <= 0x437F) {
+			snes->dma.write_reg(lower_word, val);
+		}
+	}
+	if (bank >= 0x7E && bank <= 0x7F) {
 		wram[addr - 0x7E0000] = val;
 	}
 
