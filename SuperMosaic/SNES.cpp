@@ -84,6 +84,8 @@ void SNES::run()
 	Uint64 start, end;
 
 	while (running) {
+		start = SDL_GetPerformanceCounter();
+
 		while (SDL_PollEvent(&e)) {
 			switch (e.type) {
 				case SDL_EVENT_QUIT:
@@ -103,7 +105,5 @@ void SNES::run()
 			cpu.step();
 
 		ppu.render();
-
-		SDL_Delay(15);
 	}
 }

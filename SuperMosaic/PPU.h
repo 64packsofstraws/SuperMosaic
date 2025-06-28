@@ -21,6 +21,8 @@ class PPU
 		bool priority;
 		bool backdrop;
 		uint8_t bgnum;
+		bool in_main;
+		bool in_sub;
 	};
 
 	enum Stages {
@@ -44,14 +46,14 @@ class PPU
 		uint8_t tilemap_sizey;
 		uint16_t scrollx;
 		uint16_t scrolly;
-		bool disabled;
+		bool in_main;
+		bool in_sub;
 	} bg[4];
 
 	struct Regs {
 		uint8_t inidisp;
 		uint8_t objsel;
-		uint8_t oamaddl;
-		uint8_t oamaddh;
+		uint8_t oamadd;
 		uint8_t oamdata;
 		uint8_t bgmode;
 		uint8_t mosaic;
@@ -76,7 +78,7 @@ class PPU
 		uint8_t vmdatah;
 		uint8_t m7sel;
 		uint16_t m7a;
-		uint8_t m7b;
+		uint16_t m7b;
 		uint8_t m7c;
 		uint8_t m7d;
 		uint8_t m7x;
@@ -114,6 +116,10 @@ class PPU
 	unsigned vram_inc;
 	bool cgreg_write;
 	bool counter_latch;
+	uint8_t m7_latch;
+
+	uint16_t internal_oamadd;
+	uint8_t oam_latch;
 
 	uint8_t mdr;
 
@@ -121,8 +127,8 @@ class PPU
 	bool vblank_flag;
 	bool nmi_enable;
 
-	int dot;
-	int scanline;
+	unsigned dot;
+	unsigned scanline;
 
 	SNES* snes;
 
@@ -132,7 +138,7 @@ class PPU
 	void render_scanline();
 	void render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum);
 
-	void copy_linebufs();
+	std::array<PPU::BufMetadata, 256> copy_linebufs(uint8_t last_bg);
 
 	uint32_t to_rgb888(uint16_t rgb);
 public:

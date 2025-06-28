@@ -35,11 +35,44 @@ uint16_t PPU::get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum
 
 void PPU::render_scanline()
 {
+	if (regs.inidisp & 0x80) {
+		std::fill(framebuf.begin() + idx(0, y), framebuf.begin() + idx(255, y), 0);
+		return;
+	}
+
+	uint8_t main_last_bg = 0;
+
 	for (int i = 0; i < 4; i++) {
+		if (!bg[i].in_main) {
+			BufMetadata tmp = { 0, false, true, i };
+			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
+			continue;
+		}
+
+		main_last_bg = i;
 		render_linebuf(linebuf[i], i);
 	}
 
-	copy_linebufs();
+	std::array<BufMetadata, 256> main_buf = copy_linebufs(main_last_bg);
+
+	uint8_t sub_last_bg = 0;
+
+	for (int i = 0; i < 4; i++) {
+		if (!bg[i].in_sub) {
+			BufMetadata tmp = { 0, false, true, i };
+			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
+			continue;
+		}
+
+		sub_last_bg = i;
+		render_linebuf(linebuf[i], i);
+	}
+
+	std::array<BufMetadata, 256> sub_buf = copy_linebufs(sub_last_bg);
+	
+	for (int i = 0; i < 256; i++) {
+		framebuf[idx(i, y)] = (main_buf[i].backdrop && main_buf[i].bgnum != main_last_bg) ? sub_buf[i].rgb : main_buf[i].rgb;
+	}
 }
 
 void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
@@ -68,32 +101,18 @@ void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 
 		uint16_t entry = cgram[cgram_idx];
 
-		if (bg[bgnum].disabled) {
-			linebuf[x].priority = false;
-			linebuf[x].backdrop = true;
-		}
-		else {
-			linebuf[x].priority = (vram[tmap_idx] >> 13) & 1;
-			linebuf[x].backdrop = pal_idx == 0;
-		}
-
+		linebuf[x].priority = (vram[tmap_idx] >> 13) & 1;
+		linebuf[x].backdrop = pal_idx == 0;
 		linebuf[x].rgb = to_rgb888(entry);
 		linebuf[x].bgnum = bgnum;
+		linebuf[x].in_main = bg[bgnum].in_main;
+		linebuf[x].in_sub = bg[bgnum].in_sub;
 	}
 }
 
-void PPU::copy_linebufs()
+std::array<PPU::BufMetadata, 256> PPU::copy_linebufs(uint8_t last_bg)
 {
-	if (regs.inidisp & 0x80) {
-		std::fill(framebuf.begin() + idx(0, y), framebuf.begin() + idx(255, y), 0);
-		return;
-	}
-
-	int last_bg = 0;
-
-	for (int i = 0; i < 4; i++) {
-		if (regs.tm & (1 << i)) last_bg = i;
-	}
+	std::array<BufMetadata, 256> buf;
 
 	switch (regs.bgmode & 0x7) {
 		case 0: {
@@ -110,7 +129,7 @@ void PPU::copy_linebufs()
 
 				tmp = (result[0].backdrop && result[0].bgnum != last_bg) ? result[1] : result[0];
 
-				framebuf[idx(i, y)] = tmp.rgb;
+				buf[i] = tmp;
 			}
 		}
 			break;
@@ -126,7 +145,7 @@ void PPU::copy_linebufs()
 
 				BufMetadata bg3 = linebuf[2][i];
 			
-				framebuf[idx(i, y)] = (bg3.priority && (regs.bgmode & 0x8) && !bg3.backdrop) ? bg3.rgb : result.rgb;
+				buf[i] = (bg3.priority && (regs.bgmode & 0x8) && !bg3.backdrop) ? bg3 : result;
 			}
 		}
 			break;
@@ -140,11 +159,13 @@ void PPU::copy_linebufs()
 				else
 					result = linebuf[1][i];
 
-				framebuf[idx(i, y)] = result.rgb;
+				buf[i] = result;
 			}
 		}
 			  break;
 	}
+
+	return buf;
 }
 
 uint32_t PPU::to_rgb888(uint16_t rgb)
@@ -166,7 +187,7 @@ uint32_t PPU::to_rgb888(uint16_t rgb)
 	return (r << 24) | (g << 16) | (b << 8) | 0xFF;
 }
 
-PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 * 224, 0)
+PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 * 224, 0), oam(544, 0)
 {
 	memset(&regs, 0, sizeof(regs));
 	memset(&bg, 0, sizeof(bg));
@@ -175,7 +196,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 		bg[i].num = i;
 		bg[i].tilemap_sizex = 32;
 		bg[i].tilemap_sizey = 32;
-		bg[i].disabled = true;
+		bg[i].in_main = true;
 	}
 
 	stage = PRE_RENDER;
@@ -184,6 +205,8 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	vram_addr = vram_inc = 0;
 	cgreg_write = false;
 	counter_latch = false;
+	m7_latch = 0;
+	internal_oamadd = oam_latch = 0;
 
 	vblank_scanline = 224;
 	vblank_flag = nmi_enable = false;
@@ -195,7 +218,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	SDL_Init(SDL_INIT_VIDEO);
 
 	SDL_CreateWindowAndRenderer("SuperMosaic", 256 * SCALE, 224 * SCALE, 0, &win, &ren);
-	SDL_SetRenderVSync(ren, 1);
+	SDL_SetRenderVSync(ren, 2);
 
 	tex = SDL_CreateTexture(
 		ren,

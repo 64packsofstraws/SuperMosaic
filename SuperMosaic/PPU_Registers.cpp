@@ -14,10 +14,14 @@ uint8_t PPU::read_reg(uint16_t addr)
 			return regs.mpyh;
 
 		case 0x2137:
-			return regs.slhv;
+			counter_latch = true;
+			break;
 
-		case 0x2138:
-			return regs.oamdataread;
+		case 0x2138: {
+			uint8_t tmp = oam[internal_oamadd];
+			internal_oamadd++;
+			return tmp;
+		}
 
 		case 0x2139:
 			regs.vmdatalread = vram[vram_addr] & 0xFF;
@@ -93,15 +97,28 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x2102:
-			regs.oamaddl = val;
+			regs.oamadd = (regs.oamadd & 0xFF00) | val;
+			internal_oamadd = (regs.oamadd & 0x1FF) << 1;
 			break;
 
 		case 0x2103:
-			regs.oamaddh = val;
+			regs.oamadd = (regs.oamadd & 0x00FF) | (val << 8);
+			internal_oamadd = (regs.oamadd & 0x1FF) << 1;
 			break;
 
 		case 0x2104:
 			regs.oamdata = val;
+
+			if (!(internal_oamadd & 1)) oam_latch = val;
+
+			if (internal_oamadd < 0x200 && (internal_oamadd & 1)) {
+				oam[internal_oamadd - 1] = oam_latch;
+				oam[internal_oamadd] = val;
+			}
+
+			if (internal_oamadd >= 0x200) oam[internal_oamadd] = val;
+
+			internal_oamadd++;
 			break;
 
 		case 0x2105:
@@ -348,6 +365,9 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			if (!(regs.vmain & 0x80)) {
 				vram_addr += vram_inc;
 				vram_addr &= 0x7FFF;
+
+				regs.vmaddh = (vram_addr >> 8) & 0xFF;
+				regs.vmaddl = vram_addr & 0xFF;
 			}
 			break;
 
@@ -358,6 +378,9 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			if (regs.vmain & 0x80) {
 				vram_addr += vram_inc;
 				vram_addr &= 0x7FFF;
+
+				regs.vmaddh = (vram_addr >> 8) & 0xFF;
+				regs.vmaddl = vram_addr & 0xFF;
 			}
 			break;
 
@@ -366,34 +389,34 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x211B: {
-				static bool reg_write = false;
+			static int write_twice = 0;
 
-				if (!reg_write) {
-					regs.m7a = (regs.m7a & 0xFF00) | val;
-					reg_write = true;
-				}
-				else {
-					regs.m7a = (regs.m7a & 0x00FF) | (val << 8);
-					reg_write = false;
-				}
+			regs.m7a = (val << 8) | m7_latch;
+			m7_latch = val;
+			write_twice++;
 
-				int result = regs.m7a * regs.m7b;
+			if (write_twice == 2) {
+				int result = (regs.m7a * (regs.m7b & 0xFF)) & 0xFFFFFF;
 
 				regs.mpyh = (result >> 16) & 0xFF;
 				regs.mpym = (result >> 8) & 0xFF;
 				regs.mpyl = result & 0xFF;
+				write_twice = 0;
+			}
 		}
-				   break;
+			break;
 
 		case 0x211C: {
-					   regs.m7b = val;
-					   int result = regs.m7a * regs.m7b;
+			regs.m7b = (val << 8) | m7_latch;
+			m7_latch = val;
 
-					   regs.mpyh = (result >> 16) & 0xFF;
-					   regs.mpym = (result >> 8) & 0xFF;
-					   regs.mpyl = result & 0xFF;
+			int result = (regs.m7a * (regs.m7b & 0xFF)) & 0xFFFFFF;
+
+			regs.mpyh = (result >> 16) & 0xFF;
+			regs.mpym = (result >> 8) & 0xFF;
+			regs.mpyl = result & 0xFF;
 		}
-				   break;
+			break;
 
 		case 0x211D:
 			regs.m7c = val;
@@ -468,11 +491,13 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 		case 0x212C:
 			regs.tm = val;
 			for (int i = 0; i < 4; i++)
-				bg[i].disabled = !(regs.tm & (1 << i));
+				bg[i].in_main = (regs.tm & (1 << i)) != 0;
 			break;
 
 		case 0x212D:
 			regs.ts = val;
+			for (int i = 0; i < 4; i++)
+				bg[i].in_sub = (regs.ts & (1 << i)) != 0;
 			break;
 
 		case 0x212E:
@@ -499,10 +524,6 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			regs.setini = val;
 
 			vblank_scanline = (regs.setini & 0x4) ? 240 : 225;
-			break;
-
-		case 0x2137:
-			counter_latch = true;
 			break;
 	}
 }

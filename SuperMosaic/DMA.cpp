@@ -3,10 +3,10 @@
 
 void DMA::dma_transfer(uint8_t idx)
 {
-	uint16_t n = channels[idx].das;
+	int n = channels[idx].das;
 	uint8_t bank = channels[idx].bank;
 
-	if (!n) n--;
+	if (n == 0) n = 0x10000;
 
 	int inc = 0;
 	switch ((channels[idx].dmaparam >> 3) & 0x3) {
@@ -89,19 +89,8 @@ void DMA::dma_transfer(uint8_t idx)
 		case 3:
 			while (n) {
 				if (channels[idx].dmaparam & 0x80) {
-					int i = 0;
-
-					for (; i < 2 && n; i++) {
-						uint8_t byte = snes->bus.read_noticks(channels[idx].addressB);
-						snes->bus.write_noticks((bank << 16) | channels[idx].addressA, byte);
-
-						snes->cpu.tick_components(8);
-						channels[idx].addressA += inc;
-						n--;
-					}
-
-					for (; i < 4 && n; i++) {
-						uint8_t byte = snes->bus.read_noticks(channels[idx].addressB + 1);
+					for (int i = 0; i < 4 && n; i++) {
+						uint8_t byte = snes->bus.read_noticks(channels[idx].addressB + (i / 2));
 						snes->bus.write_noticks((bank << 16) | channels[idx].addressA, byte);
 
 						snes->cpu.tick_components(8);
@@ -110,20 +99,9 @@ void DMA::dma_transfer(uint8_t idx)
 					}
 				}
 				else {
-					int i = 0;
-
-					for (; i < 2 && n; i++) {
+					for (int i = 0; i < 4 && n; i++) {
 						uint8_t byte = snes->bus.read_noticks((bank << 16) | channels[idx].addressA);
-						snes->bus.write_noticks(channels[idx].addressB, byte);
-
-						snes->cpu.tick_components(8);
-						channels[idx].addressA += inc;
-						n--;
-					}
-
-					for (; i < 4 && n; i++) {
-						uint8_t byte = snes->bus.read_noticks((bank << 16) | channels[idx].addressA);
-						snes->bus.write_noticks(channels[idx].addressB + 1, byte);
+						snes->bus.write_noticks(channels[idx].addressB + (i / 2), byte);
 
 						snes->cpu.tick_components(8);
 						channels[idx].addressA += inc;
