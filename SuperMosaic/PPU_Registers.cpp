@@ -14,7 +14,11 @@ uint8_t PPU::read_reg(uint16_t addr)
 			return regs.mpyh;
 
 		case 0x2137:
-			counter_latch = true;
+			if (!counter_latch) {
+				regs.ophct = dot;
+				regs.opvct = scanline;
+				counter_latch = true;
+			}
 			break;
 
 		case 0x2138: {
@@ -24,21 +28,29 @@ uint8_t PPU::read_reg(uint16_t addr)
 		}
 
 		case 0x2139:
-			regs.vmdatalread = vram[vram_addr] & 0xFF;
+			regs.vmdatalread = vram_latch & 0xFF;
 			
 			if (!(regs.vmain & 0x80)) {
+				vram_latch = vram[vram_addr];
 				vram_addr += vram_inc;
 				vram_addr &= 0x7FFF;
+
+				regs.vmaddh = (vram_addr >> 8) & 0xFF;
+				regs.vmaddl = vram_addr & 0xFF;
 			}
 			
 			return regs.vmdatalread;
 
 		case 0x213A:
-			regs.vmdatahread = vram[vram_addr] >> 8;
+			regs.vmdatahread = vram_latch >> 8;
 
 			if (regs.vmain & 0x80) {
+				vram_latch = vram[vram_addr];
 				vram_addr += vram_inc;
 				vram_addr &= 0x7FFF;
+
+				regs.vmaddh = (vram_addr >> 8) & 0xFF;
+				regs.vmaddl = vram_addr & 0xFF;
 			}
 
 			return regs.vmdatahread;
@@ -57,27 +69,35 @@ uint8_t PPU::read_reg(uint16_t addr)
 			}
 			break;
 
-		case 0x213C:
-			if (!counter_latch) {
-				counter_latch = true;
-				return dot & 0xFF;
-			}
-			else {
-				counter_latch = false;
-				return (dot >> 8) & 0xFF;
-			}
+		case 0x213C: {
+			uint8_t tmp;
+			if (!ophct_byte) tmp = regs.ophct & 0xFF;
+			else tmp = (regs.ophct >> 8) & 0xFF;
+
+			ophct_byte = !ophct_byte;
+			return tmp;
+		}
 			break;
 
-		case 0x213D:
-			if (!counter_latch) {
-				counter_latch = true;
-				return scanline & 0xFF;
-			}
-			else {
-				counter_latch = false;
-				return (scanline >> 8) & 0xFF;
-			}
+		case 0x213D: {
+			uint8_t tmp;
+			if (!opvct_byte) tmp = regs.opvct & 0xFF;
+			else tmp = (regs.opvct >> 8) & 0xFF;
+
+			opvct_byte = !opvct_byte;
+			return tmp;
+		}
 			break;
+
+		case 0x213E:
+			return regs.stat77;
+
+		case 0x213F: {
+			uint8_t tmp = regs.stat78 | (counter_latch << 6) | (interlace_frame << 7);
+			counter_latch = false;
+			opvct_byte = ophct_byte = false;
+			return tmp;
+		}
 	}
 	return 0;
 }
@@ -107,18 +127,23 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x2104:
-			regs.oamdata = val;
+			if (internal_oamadd < 544) {
+				regs.oamdata = val;
 
-			if (!(internal_oamadd & 1)) oam_latch = val;
+				if (!(internal_oamadd & 1)) oam_latch = val;
 
-			if (internal_oamadd < 0x200 && (internal_oamadd & 1)) {
-				oam[internal_oamadd - 1] = oam_latch;
-				oam[internal_oamadd] = val;
+				if (internal_oamadd < 0x200 && (internal_oamadd & 1)) {
+					oam[internal_oamadd - 1] = oam_latch;
+					oam[internal_oamadd] = val;
+				}
+
+				if (internal_oamadd >= 0x200) oam[internal_oamadd] = val;
+
+				internal_oamadd++;
+
+				if (internal_oamadd == 544) regs.stat77 |= 0x40;
+				else regs.stat77 &= ~0x40;
 			}
-
-			if (internal_oamadd >= 0x200) oam[internal_oamadd] = val;
-
-			internal_oamadd++;
 			break;
 
 		case 0x2105:
@@ -351,11 +376,13 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 		case 0x2116:
 			regs.vmaddl = val;
 			vram_addr = (vram_addr & 0x7F00) | regs.vmaddl;
+			vram_latch = vram[vram_addr];
 			break;
 
 		case 0x2117:
 			regs.vmaddh = val & 0x7F;
 			vram_addr = (vram_addr & 0x00FF) | (regs.vmaddh << 8);
+			vram_latch = vram[vram_addr];
 			break;
 
 		case 0x2118:

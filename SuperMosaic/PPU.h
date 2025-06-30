@@ -106,16 +106,23 @@ class PPU
 		uint8_t mpym;
 		uint8_t mpyh;
 		uint8_t slhv;
+		uint16_t ophct;
+		uint16_t opvct;
 		uint8_t oamdataread;
 		uint8_t vmdatalread;
 		uint8_t vmdatahread;
 		uint16_t cgdataread;
+		uint8_t stat77;
+		uint8_t stat78;
 	} regs;
 
 	uint16_t vram_addr;
+	uint16_t vram_latch;
 	unsigned vram_inc;
 	bool cgreg_write;
 	bool counter_latch;
+	bool ophct_byte;
+	bool opvct_byte;
 	uint8_t m7_latch;
 
 	uint16_t internal_oamadd;
@@ -126,6 +133,7 @@ class PPU
 	uint8_t vblank_scanline;
 	bool vblank_flag;
 	bool nmi_enable;
+	bool interlace_frame;
 
 	unsigned dot;
 	unsigned scanline;

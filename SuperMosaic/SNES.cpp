@@ -81,11 +81,8 @@ void SNES::run()
 {
 	bool running = true;
 	SDL_Event e;
-	Uint64 start, end;
 
 	while (running) {
-		start = SDL_GetPerformanceCounter();
-
 		while (SDL_PollEvent(&e)) {
 			switch (e.type) {
 				case SDL_EVENT_QUIT:

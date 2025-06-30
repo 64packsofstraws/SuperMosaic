@@ -206,10 +206,13 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	cgreg_write = false;
 	counter_latch = false;
 	m7_latch = 0;
+	opvct_byte = ophct_byte = false;
+
 	internal_oamadd = oam_latch = 0;
 
 	vblank_scanline = 224;
 	vblank_flag = nmi_enable = false;
+	interlace_frame = false;
 	frame_ready = false;
 	dot = scanline = 0;
 
@@ -360,8 +363,10 @@ void PPU::tick(unsigned cycles)
 					scanline = 0;
 					y = scanline - 1;
 					snes->bus.regs.rdnmi &= 0x7F;
-					vblank_flag = false;
 					snes->bus.regs.hvbjoy &= ~0x80;
+					
+					vblank_flag = false;
+					interlace_frame = !interlace_frame;
 
 					stage = PRE_RENDER;
 					snes->dma.hdma_reset();
