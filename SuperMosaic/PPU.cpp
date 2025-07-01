@@ -170,9 +170,9 @@ std::array<PPU::BufMetadata, 256> PPU::copy_linebufs(uint8_t last_bg)
 
 uint32_t PPU::to_rgb888(uint16_t rgb)
 {
-	uint8_t r = rgb & 0x3F;
-	uint8_t g = (rgb >> 5) & 0x3F;
-	uint8_t b = (rgb >> 10) & 0x3F;
+	uint8_t r = rgb & 0x1F;
+	uint8_t g = (rgb >> 5) & 0x1F;
+	uint8_t b = (rgb >> 10) & 0x1F;
 
 	float brightness = static_cast<float>(regs.inidisp & 0xF) / 15.0f;
 
