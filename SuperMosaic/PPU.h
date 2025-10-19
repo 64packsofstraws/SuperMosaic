@@ -16,13 +16,28 @@ class PPU
 	std::vector<uint16_t> cgram;
 	std::vector<uint8_t> oam;
 
+	struct SpriteEntry {
+		uint16_t x;
+		uint8_t y;
+		uint16_t tile_addr;
+		uint8_t pal_sel;
+		bool vflip;
+		bool hflip;
+		uint8_t priority;
+		uint8_t width;
+		uint8_t height;
+	};
+
+	uint16_t sprite_page0;
+	uint16_t sprite_page1;
+
+	std::vector<SpriteEntry> active_sprites;
+
 	struct BufMetadata {
 		uint32_t rgb;
 		bool priority;
 		bool backdrop;
 		uint8_t bgnum;
-		bool in_main;
-		bool in_sub;
 	};
 
 	enum Stages {
@@ -139,6 +154,9 @@ class PPU
 	unsigned scanline;
 
 	SNES* snes;
+
+	void get_active_sprites();
+	void render_sprites();
 
 	uint8_t get_bpp_row(uint8_t bpp, uint16_t tmap_base, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y);
 	uint16_t get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum);

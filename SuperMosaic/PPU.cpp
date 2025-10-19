@@ -1,6 +1,90 @@
 #include "PPU.h"
 #include "SNES.h"
 
+void PPU::get_active_sprites()
+{
+	SpriteEntry entry;
+
+	for (int i = 0; i < 512; i += 4) {
+		entry.x = oam[i];
+		entry.y = oam[i + 1];
+		entry.tile_addr = oam[i + 2];
+		uint8_t attr = oam[i + 3];
+
+		uint8_t high_table = (oam[(i / 16) + 512] >> 2 * ((i / 4) % 4)) & 0x3;
+
+		entry.x |= high_table & 1;
+
+		switch ((regs.objsel >> 5) & 0x7) {
+			case 0:
+				entry.height = entry.width = high_table & 0x2 ? 16 : 8;
+				break;
+
+			case 1:
+				entry.height = entry.width = high_table & 0x2 ? 32 : 8;
+				break;
+
+			case 2:
+				entry.height = entry.width = high_table & 0x2 ? 64 : 8;
+				break;
+
+			case 3:
+				entry.height = entry.width = high_table & 0x2 ? 32 : 16;
+				break;
+
+			case 4:
+				entry.height = entry.width = high_table & 0x2 ? 64 : 16;
+				break;
+
+			case 5:
+				entry.height = entry.width = high_table & 0x2 ? 64 : 32;
+				break;
+
+			case 6:
+				if (high_table & 0x2) {
+					entry.width = 16;
+					entry.height = 32;
+				}
+				else {
+					entry.width = 32;
+					entry.height = 64;
+				}
+				break;
+
+			case 7:
+				if (high_table & 0x2) {
+					entry.width = 16;
+					entry.height = 32;
+				}
+				else {
+					entry.width = 32;
+					entry.height = 32;
+				}
+				break;
+		}
+		
+		uint16_t base = attr & 1 ? sprite_page1 : sprite_page0;
+
+		entry.tile_addr |= base;
+
+		entry.pal_sel = attr >> 1 & 0x7;
+		entry.priority = attr >> 4 & 0x3;
+		entry.hflip = attr & 0x40;
+		entry.vflip = attr & 0x80;
+
+		if (entry.x > 256 && entry.x + entry.width - 1 < 512) continue;
+
+		if (y >= entry.y && y < entry.y + entry.height) {
+			active_sprites.push_back(entry);
+
+			if (active_sprites.size() == 32) {
+				regs.stat77 |= 0x40;
+				break;
+			}
+		}
+	}
+}
+
 uint8_t PPU::get_bpp_row(uint8_t bpp, uint16_t tset_base, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y)
 {
 	uint8_t ydir = (vram[tmap_idx] >> 15) & 1 ? 7 - (y % 8) : (y % 8);
@@ -44,7 +128,7 @@ void PPU::render_scanline()
 
 	for (int i = 0; i < 4; i++) {
 		if (!bg[i].in_main) {
-			BufMetadata tmp = { 0, false, true, i };
+			BufMetadata tmp = { to_rgb888(cgram[0]), false, true, i };
 			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
 			continue;
 		}
@@ -54,9 +138,8 @@ void PPU::render_scanline()
 	}
 
 	std::array<BufMetadata, 256> main_buf = copy_linebufs(main_last_bg);
-
+	
 	uint8_t sub_last_bg = 0;
-
 	for (int i = 0; i < 4; i++) {
 		if (!bg[i].in_sub) {
 			BufMetadata tmp = { 0, false, true, i };
@@ -69,9 +152,17 @@ void PPU::render_scanline()
 	}
 
 	std::array<BufMetadata, 256> sub_buf = copy_linebufs(sub_last_bg);
-	
+
 	for (int i = 0; i < 256; i++) {
-		framebuf[idx(i, y)] = (main_buf[i].backdrop && main_buf[i].bgnum != main_last_bg) ? sub_buf[i].rgb : main_buf[i].rgb;
+		if (!main_buf[i].backdrop) {
+			framebuf[idx(i, y)] = main_buf[i].rgb;
+		}
+		else if (!sub_buf[i].backdrop) {
+			framebuf[idx(i, y)] = sub_buf[i].rgb;
+		}
+		else {
+			framebuf[idx(i, y)] = to_rgb888(cgram[0]);
+		}
 	}
 }
 
@@ -105,8 +196,6 @@ void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 		linebuf[x].backdrop = pal_idx == 0;
 		linebuf[x].rgb = to_rgb888(entry);
 		linebuf[x].bgnum = bgnum;
-		linebuf[x].in_main = bg[bgnum].in_main;
-		linebuf[x].in_sub = bg[bgnum].in_sub;
 	}
 }
 
@@ -163,6 +252,10 @@ std::array<PPU::BufMetadata, 256> PPU::copy_linebufs(uint8_t last_bg)
 			}
 		}
 			  break;
+
+		default:
+			printf("BG mode %d not supported\n", regs.bgmode);
+			exit(1);
 	}
 
 	return buf;
@@ -196,7 +289,8 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 		bg[i].num = i;
 		bg[i].tilemap_sizex = 32;
 		bg[i].tilemap_sizey = 32;
-		bg[i].in_main = true;
+		bg[i].in_main = false;
+		bg[i].in_sub = false;
 	}
 
 	stage = PRE_RENDER;
@@ -364,6 +458,8 @@ void PPU::tick(unsigned cycles)
 					y = scanline - 1;
 					snes->bus.regs.rdnmi &= 0x7F;
 					snes->bus.regs.hvbjoy &= ~0x80;
+
+					regs.stat77 &= ~0x40;
 					
 					vblank_flag = false;
 					interlace_frame = !interlace_frame;

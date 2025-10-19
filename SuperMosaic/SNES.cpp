@@ -17,6 +17,12 @@ SNES::SNES() : cpu(this), bus(this), ppu(this), dma(this), joypad(this)
 void SNES::load_file(const char* filename)
 {
 	std::ifstream f(filename, std::ios::binary);
+
+	if (!f) {
+		std::cerr << "Error: ROM not found\n";
+		exit(1);
+	}
+
 	std::filesystem::path p(filename);
 
 	size_t file_size = std::filesystem::file_size(p);

@@ -767,12 +767,12 @@ uint8_t CPU::MVN()
 	DBR = dest_bank;
 
 	if (GET_X()) {
-		if (A == 0xFFFF) return 0;
-		
 		uint8_t x = X & 0xFF;
 		uint8_t y = Y & 0xFF;
 
-		write8(y++, read8(x++));
+		write8((DBR << 16) | y, read8((src_bank << 16) | x));
+		y++;
+		x++;
 		
 		A--;
 		tick_components(12);
@@ -780,11 +780,10 @@ uint8_t CPU::MVN()
 		X = (X & 0xFF00) | (x & 0xFF);
 		Y = (Y & 0xFF00) | (y & 0xFF);
 		
-		PC -= 3;
+
+		if (A != 0xFFFF) PC -= 3;
 	}
 	else {
-		if (A == 0xFFFF) return 0;
-
 		write8((DBR << 16) | Y, read8((src_bank << 16) | X));
 		Y++;
 		X++;
@@ -792,7 +791,7 @@ uint8_t CPU::MVN()
 		A--;
 		tick_components(12);
 
-		PC -= 3;
+		if (A != 0xFFFF) PC -= 3;
 	}
 
 	return 0;
@@ -801,15 +800,16 @@ uint8_t CPU::MVN()
 uint8_t CPU::MVP() {
 	uint8_t dest_bank = read8(FULL_PC);
 	uint8_t src_bank = read8(FULL_PC + 1);
+	PC += 2;
 	DBR = dest_bank;
 
 	if (GET_X()) {
-		if (A == 0xFFFF) return 0;
-
 		uint8_t x = X & 0xFF;
 		uint8_t y = Y & 0xFF;
 
-		write8(y--, read8(x--));
+		write8((DBR << 16) | y, read8((src_bank << 16) | x));
+		y--;
+		x--;
 
 		A--;
 		tick_components(12);
@@ -817,11 +817,9 @@ uint8_t CPU::MVP() {
 		X = (X & 0xFF00) | (x & 0xFF);
 		Y = (Y & 0xFF00) | (y & 0xFF);
 
-		PC -= 3;
+		if (A != 0xFFFF) PC -= 3;
 	}
 	else {
-		if (A == 0xFFFF) return 0;
-
 		write8((DBR << 16) | Y, read8((src_bank << 16) | X));
 		Y--;
 		X--;
@@ -829,7 +827,7 @@ uint8_t CPU::MVP() {
 		A--;
 		tick_components(12);
 		
-		PC -= 3;
+		if (A != 0xFFFF) PC -= 3;
 	}
 
 	return 0;
