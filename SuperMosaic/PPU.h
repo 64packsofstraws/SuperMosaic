@@ -156,7 +156,7 @@ class PPU
 	SNES* snes;
 
 	void get_active_sprites();
-	void render_sprites();
+	void render_sprites(std::array<BufMetadata, 256>& main_buf);
 
 	uint8_t get_bpp_row(uint8_t bpp, uint16_t tmap_base, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y);
 	uint16_t get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum);
@@ -164,7 +164,7 @@ class PPU
 	void render_scanline();
 	void render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum);
 
-	std::array<PPU::BufMetadata, 256> copy_linebufs(uint8_t last_bg);
+	std::array<PPU::BufMetadata, 256> mix_linebufs(uint8_t last_bg);
 
 	uint32_t to_rgb888(uint16_t rgb);
 public:

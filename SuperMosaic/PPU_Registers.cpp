@@ -115,8 +115,8 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 		case 0x2101:
 			regs.objsel = val;
 
-			sprite_page0 = (regs.objsel & 0x3) << 13;
-			sprite_page1 = ((regs.objsel >> 3) & 0x3 + 1) << 12;
+			sprite_page0 = ((regs.objsel & 0x3) << 13) % 0x8000;
+			sprite_page1 = (((((regs.objsel >> 3) & 0x3) + 1) << 12) + sprite_page0) % 0x8000;
 			break;
 
 		case 0x2102:

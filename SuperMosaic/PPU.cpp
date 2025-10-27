@@ -4,16 +4,17 @@
 void PPU::get_active_sprites()
 {
 	SpriteEntry entry;
+	int sliver_count = 0;
 
 	for (int i = 0; i < 512; i += 4) {
 		entry.x = oam[i];
 		entry.y = oam[i + 1];
-		entry.tile_addr = oam[i + 2];
+		entry.tile_addr = oam[i + 2] * 16;
 		uint8_t attr = oam[i + 3];
 
-		uint8_t high_table = (oam[(i / 16) + 512] >> 2 * ((i / 4) % 4)) & 0x3;
+		uint8_t high_table = (oam[(i / 16) + 512] >> (2 * ((i / 4) % 4))) & 0x3;
 
-		entry.x |= high_table & 1;
+		entry.x |= (high_table & 1) << 8;
 
 		switch ((regs.objsel >> 5) & 0x7) {
 			case 0:
@@ -65,7 +66,7 @@ void PPU::get_active_sprites()
 		
 		uint16_t base = attr & 1 ? sprite_page1 : sprite_page0;
 
-		entry.tile_addr |= base;
+		entry.tile_addr += base;
 
 		entry.pal_sel = attr >> 1 & 0x7;
 		entry.priority = attr >> 4 & 0x3;
@@ -76,6 +77,9 @@ void PPU::get_active_sprites()
 
 		if (y >= entry.y && y < entry.y + entry.height) {
 			active_sprites.push_back(entry);
+			sliver_count += entry.width / 8;
+
+			if (sliver_count >= 34) regs.stat77 |= 0x80;
 
 			if (active_sprites.size() == 32) {
 				regs.stat77 |= 0x40;
@@ -83,6 +87,48 @@ void PPU::get_active_sprites()
 			}
 		}
 	}
+}
+
+void PPU::render_sprites(std::array<BufMetadata, 256>& main_buf)
+{
+	for (auto& entry : active_sprites) {
+		int tile_per_row = entry.width / 8;
+		
+		for (int x = entry.x, i = 0; x < 256 && i < tile_per_row; i++) {
+			//uint8_t ydir = entry.vflip ? (entry.height - 1) - (y - entry.y) : y - entry.y;
+
+			uint16_t sprite_idx =
+				entry.tile_addr + 
+				(y - entry.y) +
+				(((y - entry.y) / 8) * 0xF8) +
+				(entry.hflip ? (tile_per_row - 1 - i) : i) * 16;
+
+			uint8_t p1 = vram[sprite_idx] & 0xFF;
+			uint8_t p2 = vram[sprite_idx] >> 8;
+			uint8_t p3 = vram[sprite_idx + 8] & 0xFF;
+			uint8_t p4 = vram[sprite_idx + 8] >> 8;
+
+			for (int j = 0; j < 8; j++) {
+				uint8_t xdir = entry.hflip ? 0x1 << j : 0x80 >> j;
+				bool b1 = (p1 & xdir) != 0;
+				bool b2 = (p2 & xdir) != 0;
+				bool b3 = (p3 & xdir) != 0;
+				bool b4 = (p4 & xdir) != 0;
+
+				uint8_t pal_idx = (b4 << 3) | (b3 << 2) | (b2 << 1) | b1;
+				
+				if (pal_idx) {
+					main_buf[x].rgb = to_rgb888(cgram[16 * (8 + entry.pal_sel) + pal_idx]);
+					main_buf[x].backdrop = false;
+				}
+				x++;
+
+				if (x > 255) break;
+			}
+		}
+	}
+
+	active_sprites.clear();
 }
 
 uint8_t PPU::get_bpp_row(uint8_t bpp, uint16_t tset_base, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y)
@@ -137,7 +183,7 @@ void PPU::render_scanline()
 		render_linebuf(linebuf[i], i);
 	}
 
-	std::array<BufMetadata, 256> main_buf = copy_linebufs(main_last_bg);
+	std::array<BufMetadata, 256> main_buf = mix_linebufs(main_last_bg);
 	
 	uint8_t sub_last_bg = 0;
 	for (int i = 0; i < 4; i++) {
@@ -151,7 +197,11 @@ void PPU::render_scanline()
 		render_linebuf(linebuf[i], i);
 	}
 
-	std::array<BufMetadata, 256> sub_buf = copy_linebufs(sub_last_bg);
+	std::array<BufMetadata, 256> sub_buf = mix_linebufs(sub_last_bg);
+
+	get_active_sprites();
+
+	if (!active_sprites.empty()) render_sprites(main_buf);
 
 	for (int i = 0; i < 256; i++) {
 		if (!main_buf[i].backdrop) {
@@ -199,7 +249,7 @@ void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 	}
 }
 
-std::array<PPU::BufMetadata, 256> PPU::copy_linebufs(uint8_t last_bg)
+std::array<PPU::BufMetadata, 256> PPU::mix_linebufs(uint8_t last_bg)
 {
 	std::array<BufMetadata, 256> buf;
 
@@ -364,10 +414,6 @@ void PPU::tick(unsigned cycles)
 					snes->cpu.irq_pending = true;
 					snes->bus.regs.timeup |= 0x80;
 				}
-				else {
-					snes->cpu.irq_pending = false;
-					snes->bus.regs.timeup &= ~0x80;
-				}
 				break;
 
 			case 2:
@@ -375,20 +421,12 @@ void PPU::tick(unsigned cycles)
 					snes->cpu.irq_pending = true;
 					snes->bus.regs.timeup |= 0x80;
 				}
-				else {
-					snes->cpu.irq_pending = false;
-					snes->bus.regs.timeup &= ~0x80;
-				}
 				break;
 
 			case 3:
 				if (scanline == vtime && dot == htime) {
 					snes->cpu.irq_pending = true;
 					snes->bus.regs.timeup |= 0x80;
-				}
-				else {
-					snes->cpu.irq_pending = false;
-					snes->bus.regs.timeup &= ~0x80;
 				}
 				break;
 		}
@@ -433,7 +471,11 @@ void PPU::tick(unsigned cycles)
 					vblank_flag = true;
 					snes->bus.regs.hvbjoy |= 0x80;
 					snes->bus.regs.hvbjoy &= ~0x40;
-					snes->joypad.update_autoread();
+
+					if (snes->bus.regs.nmitimen & 1) {
+						snes->joypad.update_autoread();
+						snes->bus.regs.hvbjoy |= 0x1;
+					}
 
 					snes->dma.hdma_reset();
 				}
@@ -452,6 +494,9 @@ void PPU::tick(unsigned cycles)
 				scanline++;
 				y = scanline - 1;
 
+				if (scanline == vblank_scanline + 3)
+					snes->bus.regs.hvbjoy &= ~0x1;
+
 				if (scanline >= 261) {
 					dot = 0;
 					scanline = 0;
@@ -460,6 +505,7 @@ void PPU::tick(unsigned cycles)
 					snes->bus.regs.hvbjoy &= ~0x80;
 
 					regs.stat77 &= ~0x40;
+					regs.stat77 &= ~0x80;
 					
 					vblank_flag = false;
 					interlace_frame = !interlace_frame;
