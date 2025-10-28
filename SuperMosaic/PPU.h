@@ -5,7 +5,6 @@
 #include <SDL3/SDL.h>
 
 #define idx(x, y) (y * 256 + x)
-#define is_odd(n) ((n) % 2)
 constexpr int SCALE = 2;
 
 class SNES;
@@ -48,7 +47,7 @@ class PPU
 	} stage;
 
 	std::vector<uint32_t> framebuf;
-	int y;
+	uint8_t y;
 
 	std::array<std::array<BufMetadata, 256>, 4> linebuf;
 
@@ -156,7 +155,7 @@ class PPU
 	SNES* snes;
 
 	void get_active_sprites();
-	void render_sprites(std::array<BufMetadata, 256>& main_buf);
+	void render_sprites();
 
 	uint8_t get_bpp_row(uint8_t bpp, uint16_t tmap_base, uint16_t tmap_idx, uint16_t tset_idx, uint16_t x, uint16_t y);
 	uint16_t get_cgidx_by_mode(uint8_t tmap_pal, uint8_t pal_idx, uint8_t bgnum);

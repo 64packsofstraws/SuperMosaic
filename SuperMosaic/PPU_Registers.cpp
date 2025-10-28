@@ -5,13 +5,16 @@ uint8_t PPU::read_reg(uint16_t addr)
 {
 	switch (addr) {
 		case 0x2134:
-			return regs.mpyl;
+			mdr = regs.mpyl;
+			break;
 
 		case 0x2135:
-			return regs.mpym;
+			mdr = regs.mpym;
+			break;
 
 		case 0x2136:
-			return regs.mpyh;
+			mdr = regs.mpyh;
+			break;
 
 		case 0x2137:
 			if (!counter_latch) {
@@ -24,8 +27,9 @@ uint8_t PPU::read_reg(uint16_t addr)
 		case 0x2138: {
 			uint8_t tmp = oam[internal_oamadd];
 			internal_oamadd++;
-			return tmp;
+			mdr = tmp;
 		}
+			break;
 
 		case 0x2139:
 			regs.vmdatalread = vram_latch & 0xFF;
@@ -39,7 +43,8 @@ uint8_t PPU::read_reg(uint16_t addr)
 				regs.vmaddl = vram_addr & 0xFF;
 			}
 			
-			return regs.vmdatalread;
+			mdr = regs.vmdatalread;
+			break;
 
 		case 0x213A:
 			regs.vmdatahread = vram_latch >> 8;
@@ -53,19 +58,20 @@ uint8_t PPU::read_reg(uint16_t addr)
 				regs.vmaddl = vram_addr & 0xFF;
 			}
 
-			return regs.vmdatahread;
+			mdr = regs.vmdatahread;
+			break;
 
 		case 0x213B:
 			regs.cgdataread = cgram[regs.cgadd];
 
 			if (!cgreg_write) {
 				cgreg_write = true;
-				return regs.cgdataread & 0xFF;
+				mdr = regs.cgdataread & 0xFF;
 			}
 			else {
 				cgreg_write = false;
 				regs.cgadd++;
-				return (regs.cgdataread >> 8) & 0x7F;
+				mdr = (regs.cgdataread >> 8) & 0x7F;
 			}
 			break;
 
@@ -75,7 +81,7 @@ uint8_t PPU::read_reg(uint16_t addr)
 			else tmp = (regs.ophct >> 8) & 0xFF;
 
 			ophct_byte = !ophct_byte;
-			return tmp;
+			mdr = tmp;
 		}
 			break;
 
@@ -85,21 +91,23 @@ uint8_t PPU::read_reg(uint16_t addr)
 			else tmp = (regs.opvct >> 8) & 0xFF;
 
 			opvct_byte = !opvct_byte;
-			return tmp;
+			mdr = tmp;
 		}
 			break;
 
 		case 0x213E:
-			return regs.stat77;
+			mdr = regs.stat77;
+			break;
 
 		case 0x213F: {
 			uint8_t tmp = regs.stat78 | (counter_latch << 6) | (interlace_frame << 7);
 			counter_latch = false;
 			opvct_byte = ophct_byte = false;
-			return tmp;
+			mdr = tmp;
 		}
 	}
-	return 0;
+
+	return mdr;
 }
 
 void PPU::write_reg(uint16_t addr, uint8_t val)
@@ -389,28 +397,32 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x2118:
-			regs.vmdatal = val;
-			vram[vram_addr] = (vram[vram_addr] & 0xFF00) | regs.vmdatal;
+			if (regs.inidisp & 0x80 || stage == VBLANK) {
+				regs.vmdatal = val;
+				vram[vram_addr] = (vram[vram_addr] & 0xFF00) | regs.vmdatal;
 
-			if (!(regs.vmain & 0x80)) {
-				vram_addr += vram_inc;
-				vram_addr &= 0x7FFF;
+				if (!(regs.vmain & 0x80)) {
+					vram_addr += vram_inc;
+					vram_addr &= 0x7FFF;
 
-				regs.vmaddh = (vram_addr >> 8) & 0xFF;
-				regs.vmaddl = vram_addr & 0xFF;
+					regs.vmaddh = (vram_addr >> 8) & 0xFF;
+					regs.vmaddl = vram_addr & 0xFF;
+				}
 			}
 			break;
 
 		case 0x2119:
-			regs.vmdatah = val;
-			vram[vram_addr] = (vram[vram_addr] & 0x00FF) | (regs.vmdatah << 8);
+			if (regs.inidisp & 0x80 || stage == VBLANK) {
+				regs.vmdatah = val;
+				vram[vram_addr] = (vram[vram_addr] & 0x00FF) | (regs.vmdatah << 8);
 
-			if (regs.vmain & 0x80) {
-				vram_addr += vram_inc;
-				vram_addr &= 0x7FFF;
+				if (regs.vmain & 0x80) {
+					vram_addr += vram_inc;
+					vram_addr &= 0x7FFF;
 
-				regs.vmaddh = (vram_addr >> 8) & 0xFF;
-				regs.vmaddl = vram_addr & 0xFF;
+					regs.vmaddh = (vram_addr >> 8) & 0xFF;
+					regs.vmaddl = vram_addr & 0xFF;
+				}
 			}
 			break;
 
@@ -426,7 +438,10 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			write_twice++;
 
 			if (write_twice == 2) {
-				int result = (regs.m7a * (regs.m7b & 0xFF)) & 0xFFFFFF;
+				int16_t a = regs.m7a;
+				int8_t b = regs.m7b & 0xFF;
+
+				int result = (a * b) & 0xFFFFFF;
 
 				regs.mpyh = (result >> 16) & 0xFF;
 				regs.mpym = (result >> 8) & 0xFF;
@@ -440,7 +455,10 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			regs.m7b = (val << 8) | m7_latch;
 			m7_latch = val;
 
-			int result = (regs.m7a * (regs.m7b & 0xFF)) & 0xFFFFFF;
+			int16_t a = regs.m7a;
+			int8_t b = regs.m7b & 0xFF;
+
+			int result = (a * b) & 0xFFFFFF;
 
 			regs.mpyh = (result >> 16) & 0xFF;
 			regs.mpym = (result >> 8) & 0xFF;

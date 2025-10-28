@@ -146,6 +146,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PPU.cpp" />
     <ClCompile Include="PPU_Registers.cpp" />
+    <ClCompile Include="PPU_Rendering.cpp" />
     <ClCompile Include="SNES.cpp" />
   </ItemGroup>
   <ItemGroup>

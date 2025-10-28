@@ -48,6 +48,9 @@
     <ClCompile Include="Joypad.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PPU_Rendering.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CPU.h">
