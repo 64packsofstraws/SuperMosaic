@@ -82,18 +82,18 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 			break;
 
 		case 0x2181:
-			regs.wmaddh = val & 0x1;
-			wram_addr = (wram_addr & 0x00FFFF) | (regs.wmaddh << 16);
+			regs.wmaddl = val;
+			wram_addr = (wram_addr & 0xFFFF00) | regs.wmaddl;
 			break;
 
 		case 0x2182:
 			regs.wmaddm = val;
-			wram_addr = (wram_addr & 0xFF00FF) | (regs.wmaddm << 4);
+			wram_addr = (wram_addr & 0xFF00FF) | (regs.wmaddm << 8);
 			break;
 
 		case 0x2183:
-			regs.wmaddl = val;
-			wram_addr = (wram_addr & 0xFFFF00) | regs.wmaddl;
+			regs.wmaddh = val & 0x1;
+			wram_addr = (wram_addr & 0x00FFFF) | (regs.wmaddh << 16);
 			break;
 
 		case 0x4016: {
