@@ -207,15 +207,16 @@ void PPU::render_scanline()
 
 	std::array<BufMetadata, 256> sub_buf = mix_linebufs(sub_last_bg);
 
-	for (int i = 0; i < 256; i++) {
-		if (!main_buf[i].backdrop) {
-			framebuf[idx(i, y)] = main_buf[i].rgb;
+	for (int x = 0; x < 256; x++) {
+		if (!main_buf[x].backdrop) {
+			framebuf[idx(x, y)] = main_buf[x].rgb;
 		}
-		else if (!sub_buf[i].backdrop) {
-			framebuf[idx(i, y)] = sub_buf[i].rgb;
+		else if (!sub_buf[x].backdrop) {
+			framebuf[idx(x, y)] = sub_buf[x].rgb;
 		}
 		else {
-			framebuf[idx(i, y)] = to_rgb888(cgram[0]);
+			framebuf[idx(x, y)] = (!(regs.cgwsel & 0x10) && (regs.cgadsub & 0x20)) ?
+				to_rgb888((fc.b << 10) | (fc.g << 5) | fc.r) : to_rgb888(cgram[0]);
 		}
 	}
 }

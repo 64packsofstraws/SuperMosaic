@@ -5,6 +5,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 {
 	memset(&regs, 0, sizeof(regs));
 	memset(&bg, 0, sizeof(bg));
+	memset(&fc, 0, sizeof(fc));
 
 	for (int i = 0; i < 4; i++) {
 		bg[i].num = i;

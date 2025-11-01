@@ -130,6 +130,12 @@ class PPU
 		uint8_t stat78;
 	} regs;
 
+	struct FixedColorChannels {
+		uint8_t r;
+		uint8_t g;
+		uint8_t b;
+	} fc;
+
 	uint16_t vram_addr;
 	uint16_t vram_latch;
 	unsigned vram_inc;

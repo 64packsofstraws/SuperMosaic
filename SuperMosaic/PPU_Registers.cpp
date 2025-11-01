@@ -564,8 +564,14 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 			regs.cgadsub = val;
 			break;
 
-		case 0x2132:
+		case 0x2132: {
 			regs.coldata = val;
+			uint8_t intensity = val & 0x1F;
+
+			if ((regs.coldata >> 5) & 1) fc.r = intensity;
+			if ((regs.coldata >> 6) & 1) fc.g = intensity;
+			if ((regs.coldata >> 7) & 1) fc.b = intensity;
+		}
 			break;
 
 		case 0x2133:
