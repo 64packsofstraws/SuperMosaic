@@ -233,6 +233,10 @@ uint8_t Bus::read(uint32_t addr)
 			mdr = snes->dma.read_reg(lower_word);
 		}
 	}
+	if (bank >= 0x70 && bank <= 0x7D && lower_word < 0x8000) {
+		snes->cpu.tick_components(8);
+		mdr = snes->cart->read_ram(addr);
+	}
 	if (bank >= 0x7E && bank <= 0x7F) {		
 		snes->cpu.tick_components(8);
 		mdr = wram[addr - 0x7E0000];
@@ -268,6 +272,10 @@ void Bus::write(uint32_t addr, uint8_t val)
 			snes->dma.write_reg(lower_word, val);
 		}
 	}
+	if (bank >= 0x70 && bank <= 0x7D && lower_word < 0x8000) {
+		snes->cpu.tick_components(8);
+		snes->cart->write_ram(addr, val);
+	}
 	if (bank >= 0x7E && bank <= 0x7F) {
 		snes->cpu.tick_components(8);
 		wram[addr - 0x7E0000] = val;
@@ -294,6 +302,9 @@ uint8_t Bus::read_noticks(uint32_t addr)
 		else if (lower_word >= 0x4300 && lower_word <= 0x437F) {
 			mdr = snes->dma.read_reg(lower_word);
 		}
+	}
+	if (bank >= 0x70 && bank <= 0x7D && lower_word < 0x8000) {
+		mdr = snes->cart->read_ram(addr);
 	}
 	if (bank >= 0x7E && bank <= 0x7F) {
 		mdr = wram[addr - 0x7E0000];
@@ -323,6 +334,10 @@ void Bus::write_noticks(uint32_t addr, uint8_t val)
 		else if (lower_word >= 0x4300 && lower_word <= 0x437F) {
 			snes->dma.write_reg(lower_word, val);
 		}
+	}
+	if (bank >= 0x70 && bank <= 0x7D && lower_word < 0x8000) {
+		snes->cpu.tick_components(8);
+		snes->cart->write_ram(addr, val);
 	}
 	if (bank >= 0x7E && bank <= 0x7F) {
 		wram[addr - 0x7E0000] = val;

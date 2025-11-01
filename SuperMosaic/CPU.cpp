@@ -315,7 +315,7 @@ void CPU::tick_components(unsigned mclock)
 void CPU::step()
 {
 	/*
-	if (PC == 0xb434) {
+	if (PC == 0x8067) {
 		printf("asdads");
 	}
 	*/

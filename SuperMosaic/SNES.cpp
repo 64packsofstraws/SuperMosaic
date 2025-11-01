@@ -78,6 +78,9 @@ void SNES::load_file(const char* filename)
 
 	switch (header.map_mode & 0xF) {
 		case 0: cart = std::make_unique<LoROM>(rom, ram, header.map_mode & 0x10); break;
+		default:
+			printf("Cart type not supported\n");
+			exit(1);
 	}
 
 	cpu.reset();
