@@ -63,3 +63,8 @@ uint8_t Joypad::get_serinput()
 	shift_reg |= 1;
 	return tmp;
 }
+
+void Joypad::reset_joypad()
+{
+	joypad = 0;
+}

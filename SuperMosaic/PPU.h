@@ -160,6 +160,8 @@ class PPU
 
 	SNES* snes;
 
+	void apply_mosaic(uint8_t bgnum);
+
 	void get_active_sprites();
 	void render_sprites();
 

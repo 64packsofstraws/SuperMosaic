@@ -223,18 +223,21 @@ void PPU::render_scanline()
 
 void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 {
+	uint8_t mosaic = 1;
+	if (regs.mosaic & (1 << bgnum)) mosaic = ((regs.mosaic >> 4) & 0xF) + 1;
+
 	for (int x = 0; x < 256; x++) {
 		uint16_t tmap_base = bg[bgnum].tilemap_base & 0x7FFF;
 		uint16_t tset_base = bg[bgnum].tileset_base & 0x7FFF;
 
-		uint16_t scrollx = (bg[bgnum].scrollx + x) % (8 * bg[bgnum].tilemap_sizex);
-		uint16_t scrolly = (bg[bgnum].scrolly + y) % (8 * bg[bgnum].tilemap_sizey);
+		uint16_t scrollx = (bg[bgnum].scrollx + (x - (x % mosaic))) % (8 * bg[bgnum].tilemap_sizex);
+		uint16_t scrolly = (bg[bgnum].scrolly + (y - (y % mosaic))) % (8 * bg[bgnum].tilemap_sizey);
 
 		uint16_t offset =
 			(((bg[bgnum].tilemap_sizex == 64) ? (scrolly % 256) : (scrolly)) / 8) * 32 +
 			((scrollx % 256) / 8) +
-			(scrollx / 256) * 0x400 +
-			(bg[bgnum].tilemap_sizex / 64) * ((scrolly / 256) * 0x800);
+			(scrollx / 256) * 1024 +
+			(bg[bgnum].tilemap_sizex / 64) * ((scrolly / 256) * 2048);
 
 		uint16_t tmap_idx = tmap_base + offset;
 

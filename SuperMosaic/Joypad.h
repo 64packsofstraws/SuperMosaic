@@ -21,5 +21,7 @@ public:
 	void update_shiftreg();
 
 	uint8_t get_serinput();
+	
+	void reset_joypad();
 };
 
