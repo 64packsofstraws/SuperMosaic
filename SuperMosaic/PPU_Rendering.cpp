@@ -1,6 +1,20 @@
 #include "PPU.h"
 #include "SNES.h"
 
+void PPU::apply_color_math(uint8_t bgnum, std::array<BufMetadata, 256>& sub_buf)
+{
+	for (int i = 0; i < 256; i++) {
+		if (!sub_buf[i].backdrop) {
+			// mask them so the alpha byte wont mess up the calculation
+			uint32_t main_pix = linebuf[bgnum][i].rgb & 0xFFFFFF00;
+			uint32_t sub_pix = sub_buf[i].rgb & 0xFFFFFF00;
+
+			linebuf[bgnum][i].rgb = (regs.cgadsub & 0x80 ? main_pix - sub_pix : main_pix + sub_pix) | 0xFF;
+			linebuf[bgnum][i].rgb >>= 1 * ((regs.cgadsub & 0x40) != 0);
+		}
+	}
+}
+
 void PPU::get_active_sprites()
 {
 	SpriteEntry entry;
@@ -174,26 +188,8 @@ void PPU::render_scanline()
 		return;
 	}
 
-	uint8_t main_last_bg = 0;
-
-	for (int i = 0; i < 4; i++) {
-		if (!bg[i].in_main) {
-			BufMetadata tmp = { to_rgb888(cgram[0]), false, true, i };
-			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
-			continue;
-		}
-
-		main_last_bg = i;
-		render_linebuf(linebuf[i], i);
-	}
-
-	get_active_sprites();
-
-	if (!active_sprites.empty() || regs.tm & 0x10) render_sprites();
-
-	std::array<BufMetadata, 256> main_buf = mix_linebufs(main_last_bg);
-
 	uint8_t sub_last_bg = 0;
+	
 	for (int i = 0; i < 4; i++) {
 		if (!bg[i].in_sub) {
 			BufMetadata tmp = { 0, false, true, i };
@@ -206,6 +202,27 @@ void PPU::render_scanline()
 	}
 
 	std::array<BufMetadata, 256> sub_buf = mix_linebufs(sub_last_bg);
+
+	uint8_t main_last_bg = 0;
+
+	for (int i = 0; i < 4; i++) {
+		if (!bg[i].in_main) {
+			BufMetadata tmp = { to_rgb888(cgram[0]), false, true, i };
+			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
+			continue;
+		}
+
+		main_last_bg = i;
+		render_linebuf(linebuf[i], i);
+
+		if (regs.cgadsub & (1 << i) && regs.cgwsel & 0x2) apply_color_math(i, sub_buf);
+	}
+
+	get_active_sprites();
+
+	if (!active_sprites.empty() || regs.tm & 0x10) render_sprites();
+
+	std::array<BufMetadata, 256> main_buf = mix_linebufs(main_last_bg);
 
 	for (int x = 0; x < 256; x++) {
 		if (!main_buf[x].backdrop) {
