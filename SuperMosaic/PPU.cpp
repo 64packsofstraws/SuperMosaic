@@ -112,18 +112,18 @@ void PPU::tick(unsigned cycles)
 
 			case RENDERING:
 				if (dot >= 278) {
-					if (scanline >= 1 && scanline <= 224) {
-						render_scanline();
-
-						if (scanline == 224) frame_ready = true;
-					}
-
 					snes->bus.regs.hvbjoy |= 0x40;
 					stage = HBLANK;
 
 					for (int i = 0; i < 8; i++) {
 						if (snes->dma.hdma_is_enabled(i) && !snes->dma.hdma_is_terminated(i))
 							snes->dma.start_hdma_transfer(i);
+					}
+
+					if (scanline >= 1 && scanline <= 224) {
+						render_scanline();
+
+						if (scanline == 224) frame_ready = true;
 					}
 				}
 				break;

@@ -15,6 +15,39 @@ void PPU::apply_color_math(uint8_t bgnum, std::array<BufMetadata, 256>& sub_buf)
 	}
 }
 
+void PPU::render_windows(uint8_t bgnum)
+{
+	uint8_t win_mask_reg = (bgnum > 1) ? regs.w34sel : regs.w12sel;
+	bool w1_enabled = win_mask_reg & ( 1 << (((bgnum % 2) * 4) + 1) );
+	bool w1_inverted = win_mask_reg & ( 1 << (((bgnum % 2) * 4)) );
+
+	if (w1_enabled) {
+		uint8_t w1_left = regs.wh0;
+		uint8_t w1_right = regs.wh1;
+
+		if (w1_inverted) {
+			for (int i = 0; i <= w1_left; i++) {
+				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
+				linebuf[bgnum][i].window_pix = true;
+				linebuf[bgnum][i].backdrop = false;
+			}
+
+			for (int i = w1_right; i < 256; i++) {
+				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
+				linebuf[bgnum][i].window_pix = true;
+				linebuf[bgnum][i].backdrop = false;
+			}
+		}
+		else {
+			for (int i = w1_left; i <= w1_right; i++) {
+				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
+				linebuf[bgnum][i].window_pix = true;
+				linebuf[bgnum][i].backdrop = false;
+			}
+		}
+	}
+}
+
 void PPU::get_active_sprites()
 {
 	SpriteEntry entry;
@@ -192,7 +225,7 @@ void PPU::render_scanline()
 	
 	for (int i = 0; i < 4; i++) {
 		if (!bg[i].in_sub) {
-			BufMetadata tmp = { 0, false, true, i };
+			BufMetadata tmp = { 0, false, true, i, false };
 			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
 			continue;
 		}
@@ -207,13 +240,15 @@ void PPU::render_scanline()
 
 	for (int i = 0; i < 4; i++) {
 		if (!bg[i].in_main) {
-			BufMetadata tmp = { to_rgb888(cgram[0]), false, true, i };
+			BufMetadata tmp = { to_rgb888(cgram[0]), false, true, i, false };
 			std::fill(linebuf[i].begin(), linebuf[i].end(), tmp);
 			continue;
 		}
 
 		main_last_bg = i;
 		render_linebuf(linebuf[i], i);
+
+		if (regs.tmw & (1 << i)) render_windows(i);
 
 		if (regs.cgadsub & (1 << i) && regs.cgwsel & 0x2) apply_color_math(i, sub_buf);
 	}
@@ -271,6 +306,7 @@ void PPU::render_linebuf(std::array<BufMetadata, 256>& linebuf, uint8_t bgnum)
 		linebuf[x].backdrop = pal_idx == 0;
 		linebuf[x].rgb = to_rgb888(entry);
 		linebuf[x].bgnum = bgnum;
+		linebuf[x].window_pix = false;
 	}
 }
 

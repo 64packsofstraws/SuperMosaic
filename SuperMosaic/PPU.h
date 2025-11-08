@@ -37,6 +37,7 @@ class PPU
 		bool priority;
 		bool backdrop;
 		uint8_t bgnum;
+		bool window_pix;
 	};
 
 	enum Stages {
@@ -161,6 +162,7 @@ class PPU
 	SNES* snes;
 
 	void apply_color_math(uint8_t bgnum, std::array<BufMetadata, 256>& sub_buf);
+	void render_windows(uint8_t bgnum);
 
 	void get_active_sprites();
 	void render_sprites();
