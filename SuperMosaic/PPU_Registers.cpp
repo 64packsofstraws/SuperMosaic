@@ -17,11 +17,9 @@ uint8_t PPU::read_reg(uint16_t addr)
 			break;
 
 		case 0x2137:
-			if (!counter_latch) {
-				regs.ophct = dot;
-				regs.opvct = scanline;
-				counter_latch = true;
-			}
+			regs.ophct = dot;
+			regs.opvct = scanline;
+			counter_latch = true;
 			break;
 
 		case 0x2138: {

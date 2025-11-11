@@ -9,9 +9,16 @@ bool SNES::is_title(std::vector<uint8_t>& rom, uint16_t addr)
 	return true;
 }
 
-SNES::SNES() : cpu(this), bus(this), ppu(this), dma(this), joypad(this)
+SNES::SNES(bool mouse_enabled) : cpu(this), bus(this), ppu(this), dma(this)
 {
 	memset(&header, 0, sizeof(header));
+
+	if (mouse_enabled) {
+		ctrlr = std::make_shared<SNESMouse>(this);
+	}
+	else {
+		ctrlr = std::make_shared<SNESController>(this);
+	}
 }
 
 void SNES::load_file(const char* filename)
@@ -98,12 +105,16 @@ void SNES::run()
 					running = false;
 					break;
 
+				case SDL_EVENT_MOUSE_MOTION:
+				case SDL_EVENT_MOUSE_BUTTON_DOWN:
 				case SDL_EVENT_KEY_DOWN:
-					joypad.handle_joyp_in(e.key.key);
+					ctrlr->handle_ctrl_in(e);
 					break;
 
+				case SDL_EVENT_MOUSE_BUTTON_UP:
 				case SDL_EVENT_KEY_UP:
-					joypad.handle_joyp_out(e.key.key);
+					ctrlr->handle_ctrl_out(e);
+					break;
 			}
 		}
 

@@ -21,7 +21,7 @@ uint8_t Bus::read_regs(uint16_t addr)
 			return wram[wram_addr++];
 
 		case 0x4016:
-			return snes->joypad.get_serinput();
+			return snes->ctrlr->get_serinput();
 
 		case 0x4214:
 			return regs.rddivl;
@@ -64,6 +64,7 @@ uint8_t Bus::read_regs(uint16_t addr)
 		
 		case 0x4212:
 			return regs.hvbjoy;
+
 	}
 
 	return mdr;
@@ -100,8 +101,10 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 			static bool prev_strobe = 1;
 
 			if (val & 1 && prev_strobe == 0) {
-				snes->joypad.update_shiftreg();
+				snes->ctrlr->update_shiftreg();
 			}
+
+			prev_strobe = val & 1;
 		}
 		   break;
 
@@ -110,8 +113,15 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 			snes->ppu.set_nmi_enable(regs.nmitimen & 0x80);
 			break;
 
-		case 0x4201:
-			regs.wrio = val;
+		case 0x4201: {
+			static bool prev_latch = 0;
+
+			if (val & 1 && prev_latch == 0) {
+				snes->ppu.latch_hv();
+			}
+
+			prev_latch = val & 1;
+		}
 			break;
 
 		case 0x4202:

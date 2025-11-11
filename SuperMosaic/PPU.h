@@ -185,6 +185,8 @@ public:
 	PPU(SNES* snes);
 	~PPU();
 	
+	void latch_hv();
+
 	bool get_vblank_flag() const;
 	void set_vblank_flag(bool val);
 

@@ -58,6 +58,12 @@ PPU::~PPU()
 	SDL_Quit();
 }
 
+void PPU::latch_hv()
+{
+	regs.ophct = dot;
+	regs.opvct = scanline;
+}
+
 bool PPU::get_vblank_flag() const
 {
 	return vblank_flag;
@@ -141,7 +147,7 @@ void PPU::tick(unsigned cycles)
 						snes->bus.regs.hvbjoy &= ~0x40;
 
 						if (snes->bus.regs.nmitimen & 1) {
-							snes->joypad.update_autoread();
+							snes->ctrlr->update_autoread();
 							snes->bus.regs.hvbjoy |= 0x1;
 						}
 

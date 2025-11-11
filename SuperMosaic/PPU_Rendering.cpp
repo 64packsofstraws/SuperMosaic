@@ -26,20 +26,20 @@ void PPU::render_windows(uint8_t bgnum)
 		uint8_t w1_right = regs.wh1;
 
 		if (w1_inverted) {
-			for (int i = 0; i <= w1_left; i++) {
+			for (int i = 0; i < w1_left; i++) {
 				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
 				linebuf[bgnum][i].window_pix = true;
 				linebuf[bgnum][i].backdrop = false;
 			}
 
-			for (int i = w1_right; i < 256; i++) {
+			for (int i = w1_right + 1; i < 256; i++) {
 				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
 				linebuf[bgnum][i].window_pix = true;
 				linebuf[bgnum][i].backdrop = false;
 			}
 		}
 		else {
-			for (int i = w1_left; i <= w1_right; i++) {
+			for (int i = w1_left; i < w1_right; i++) {
 				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
 				linebuf[bgnum][i].window_pix = true;
 				linebuf[bgnum][i].backdrop = false;

@@ -33,9 +33,9 @@ public:
 	CPU cpu;
 	Bus bus;
 	DMA dma;
-	Joypad joypad;
+	std::shared_ptr<Controller> ctrlr;
 
-	SNES();
+	SNES(bool mouse_enabled);
 
 	void load_file(const char* filename);
 	void run();
