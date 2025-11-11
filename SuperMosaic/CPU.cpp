@@ -314,6 +314,12 @@ void CPU::tick_components(unsigned mclock)
 
 void CPU::step()
 {
+#if 0
+	if (PC == 0x8929) {
+		printf("asdas");
+	}
+#endif
+
 	opcode = read8(FULL_PC);
 	PC++;
 	
@@ -331,6 +337,7 @@ void CPU::nmi()
 	push16(PC);
 	push8(status);
 
+	SET_I(1);
 	SET_D(0);
 	PBR = 0;
 	PC = read16(0xFFEA);
@@ -346,6 +353,7 @@ void CPU::irq()
 	push16(PC);
 	push8(status);
 
+	SET_I(1);
 	SET_D(0);
 	PBR = 0;
 	PC = read16(0xFFEE);
