@@ -21,7 +21,10 @@ uint8_t Bus::read_regs(uint16_t addr)
 			return wram[wram_addr++];
 
 		case 0x4016:
-			return snes->ctrlr->get_serinput();
+			return 0xFF;
+
+		case 0x4017:
+			return 0;
 
 		case 0x4214:
 			return regs.rddivl;

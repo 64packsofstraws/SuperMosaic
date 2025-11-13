@@ -148,6 +148,7 @@ class PPU
 
 	uint16_t internal_oamadd;
 	uint8_t oam_latch;
+	uint16_t oam_reload;
 
 	uint8_t mdr;
 
@@ -162,8 +163,9 @@ class PPU
 	SNES* snes;
 
 	void apply_color_math(uint8_t bgnum, std::array<BufMetadata, 256>& sub_buf);
-	void render_windows(uint8_t bgnum);
-
+	void apply_windows(uint8_t bgnum);
+	void render_windows(uint8_t w_left, uint8_t w_right, bool inverted, std::array<BufMetadata, 256>& buf, uint16_t color);
+	void render_color_windows(uint8_t w_left, uint8_t w_right, std::array<BufMetadata, 256>& buf, bool is_main);
 	void get_active_sprites();
 	void render_sprites();
 

@@ -128,11 +128,13 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 		case 0x2102:
 			regs.oamadd = (regs.oamadd & 0xFF00) | val;
 			internal_oamadd = (regs.oamadd & 0x1FF) << 1;
+			oam_reload = internal_oamadd;
 			break;
 
 		case 0x2103:
 			regs.oamadd = (regs.oamadd & 0x00FF) | (val << 8);
 			internal_oamadd = (regs.oamadd & 0x1FF) << 1;
+			oam_reload = internal_oamadd;
 			break;
 
 		case 0x2104:

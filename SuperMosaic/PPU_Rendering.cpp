@@ -15,35 +15,73 @@ void PPU::apply_color_math(uint8_t bgnum, std::array<BufMetadata, 256>& sub_buf)
 	}
 }
 
-void PPU::render_windows(uint8_t bgnum)
+void PPU::apply_windows(uint8_t bgnum)
 {
 	uint8_t win_mask_reg = (bgnum > 1) ? regs.w34sel : regs.w12sel;
 	bool w1_enabled = win_mask_reg & ( 1 << (((bgnum % 2) * 4) + 1) );
 	bool w1_inverted = win_mask_reg & ( 1 << (((bgnum % 2) * 4)) );
 
-	if (w1_enabled) {
-		uint8_t w1_left = regs.wh0;
-		uint8_t w1_right = regs.wh1;
+	if (w1_enabled)
+		render_windows(regs.wh0, regs.wh1, w1_inverted, linebuf[bgnum], cgram[0]);
+}
 
-		if (w1_inverted) {
-			for (int i = 0; i < w1_left; i++) {
-				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
-				linebuf[bgnum][i].window_pix = true;
-				linebuf[bgnum][i].backdrop = false;
-			}
-
-			for (int i = w1_right + 1; i < 256; i++) {
-				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
-				linebuf[bgnum][i].window_pix = true;
-				linebuf[bgnum][i].backdrop = false;
-			}
+void PPU::render_windows(uint8_t w_left, uint8_t w_right, bool inverted, std::array<BufMetadata, 256>& buf, uint16_t color)
+{
+	if (inverted) {
+		for (int i = 0; i < w_left; i++) {
+			buf[i].rgb = to_rgb888(color);
+			buf[i].window_pix = true;
+			buf[i].backdrop = false;
 		}
-		else {
-			for (int i = w1_left; i < w1_right; i++) {
-				linebuf[bgnum][i].rgb = to_rgb888(cgram[0]);
-				linebuf[bgnum][i].window_pix = true;
-				linebuf[bgnum][i].backdrop = false;
-			}
+
+		for (int i = w_right + 1; i < 256; i++) {
+			buf[i].rgb = to_rgb888(color);
+			buf[i].window_pix = true;
+			buf[i].backdrop = false;
+		}
+	}
+	else {
+		for (int i = w_left; i < w_right; i++) {
+			buf[i].rgb = to_rgb888(color);
+			buf[i].window_pix = true;
+			buf[i].backdrop = false;
+		}
+	}
+}
+
+void PPU::render_color_windows(uint8_t w_left, uint8_t w_right, std::array<BufMetadata, 256>& buf, bool is_main)
+{
+	uint8_t cw_region = regs.cgwsel >> 6 & 0x3;
+
+	if (is_main) {
+		switch (cw_region) {
+			case 1: case 2:
+				render_windows(regs.wh0, regs.wh1, !(regs.wobjsel & 0x10), buf, 0);
+				break;
+
+			case 3:
+				for (int i = 0; i < 256; i++) {
+					buf[i].rgb = to_rgb888(0);
+					buf[i].window_pix = true;
+					buf[i].backdrop = false;
+				}
+		}
+	}
+	else {
+		switch (cw_region) {
+			case 1: case 2:
+				if (regs.wobjsel & 0x10) {
+					for (int i = 0; i < w_left; i++) buf[i].backdrop = true;
+
+					for (int i = w_right + 1; i < 256; i++) buf[i].backdrop = true;
+				}
+				else {
+					for (int i = w_left; i < w_right; i++) buf[i].backdrop = true;
+				}
+				break;
+
+			case 3:
+				for (int i = 0; i < 256; i++) buf[i].backdrop = true;
 		}
 	}
 }
@@ -120,7 +158,7 @@ void PPU::get_active_sprites()
 		entry.hflip = attr & 0x40;
 		entry.vflip = attr & 0x80;
 
-		if (entry.x > 256 && entry.x + entry.width - 1 < 512) continue;
+		if (entry.x > 255 && entry.x + entry.width - 1 < 512) continue;
 
 		if (y >= entry.y && y < entry.y + entry.height) {
 			active_sprites.push_back(entry);
@@ -232,9 +270,12 @@ void PPU::render_scanline()
 
 		sub_last_bg = i;
 		render_linebuf(linebuf[i], i);
+	
+		if (regs.tsw & (1 << i)) apply_windows(i);
 	}
 
 	std::array<BufMetadata, 256> sub_buf = mix_linebufs(sub_last_bg);
+	render_color_windows(regs.wh0, regs.wh1, sub_buf, false);
 
 	uint8_t main_last_bg = 0;
 
@@ -248,16 +289,16 @@ void PPU::render_scanline()
 		main_last_bg = i;
 		render_linebuf(linebuf[i], i);
 
-		if (regs.tmw & (1 << i)) render_windows(i);
+		if (regs.tmw & (1 << i)) apply_windows(i);
 
 		if (regs.cgadsub & (1 << i) && regs.cgwsel & 0x2) apply_color_math(i, sub_buf);
 	}
 
 	get_active_sprites();
-
 	if (!active_sprites.empty() || regs.tm & 0x10) render_sprites();
 
 	std::array<BufMetadata, 256> main_buf = mix_linebufs(main_last_bg);
+	render_color_windows(regs.wh0, regs.wh1, main_buf, true);	
 
 	for (int x = 0; x < 256; x++) {
 		if (!main_buf[x].backdrop) {
@@ -267,7 +308,7 @@ void PPU::render_scanline()
 			framebuf[idx(x, y)] = sub_buf[x].rgb;
 		}
 		else {
-			framebuf[idx(x, y)] = (!(regs.cgwsel & 0x10) && (regs.cgadsub & 0x20)) ?
+			framebuf[idx(x, y)] = (regs.cgadsub & 0x20) ?
 				to_rgb888((fc.b << 10) | (fc.g << 5) | fc.r) : to_rgb888(cgram[0]);
 		}
 	}

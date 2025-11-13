@@ -24,7 +24,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	m7_latch = 0;
 	opvct_byte = ophct_byte = false;
 
-	internal_oamadd = oam_latch = 0;
+	internal_oamadd = oam_latch = oam_reload = 0;
 
 	vblank_scanline = 224;
 	vblank_flag = nmi_enable = false;
@@ -150,6 +150,8 @@ void PPU::tick(unsigned cycles)
 							snes->ctrlr->update_autoread();
 							snes->bus.regs.hvbjoy |= 0x1;
 						}
+
+						if (!(regs.inidisp & 0x80)) internal_oamadd = oam_reload;
 
 						snes->dma.hdma_reset();
 					}
