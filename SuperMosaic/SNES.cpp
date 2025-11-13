@@ -3,7 +3,7 @@
 bool SNES::is_title(std::vector<uint8_t>& rom, uint16_t addr)
 {
 	for (int i = addr; i < addr + 21 && rom[i] != 0; i++) {
-		if (rom[i] < 32) return false;
+		if (!isalnum(rom[i]) && !isspace(rom[i])) return false;
 	}
 
 	return true;
@@ -85,6 +85,8 @@ void SNES::load_file(const char* filename)
 
 	switch (header.map_mode & 0xF) {
 		case 0: cart = std::make_unique<LoROM>(rom, ram, header.map_mode & 0x10); break;
+		case 1: cart = std::make_unique<HiROM>(rom, ram, header.map_mode & 0x10); break;
+		
 		default:
 			printf("Cart type not supported\n");
 			exit(1);

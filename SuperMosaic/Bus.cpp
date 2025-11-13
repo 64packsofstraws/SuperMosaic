@@ -100,7 +100,7 @@ void Bus::write_regs(uint16_t addr, uint8_t val)
 		case 0x4016: {
 			static bool prev_strobe = 1;
 
-			if (val & 1 && prev_strobe == 0) {
+			if (!(val & 1) && prev_strobe == 1) {
 				snes->ctrlr->update_shiftreg();
 			}
 
@@ -243,7 +243,7 @@ uint8_t Bus::read(uint32_t addr)
 			mdr = snes->dma.read_reg(lower_word);
 		}
 	}
-	if (bank >= 0x70 && bank <= 0x7D && lower_word < 0x8000) {
+	if (snes->cart->ram_in_range(addr)) {
 		snes->cpu.tick_components(8);
 		mdr = snes->cart->read_ram(addr);
 	}
@@ -282,7 +282,7 @@ void Bus::write(uint32_t addr, uint8_t val)
 			snes->dma.write_reg(lower_word, val);
 		}
 	}
-	if (bank >= 0x70 && bank <= 0x7D && lower_word < 0x8000) {
+	if (snes->cart->ram_in_range(addr)) {
 		snes->cpu.tick_components(8);
 		snes->cart->write_ram(addr, val);
 	}

@@ -4,7 +4,7 @@
 int main(int argc, char** argv)
 {
 	SNES snes(false);
-	snes.load_file("C:\\Users\\Aaron Straw\\Downloads\\ctrl.smc");
+	snes.load_file("C:\\Users\\Aaron Straw\\Downloads\\gradient-test.sfc");
 	snes.run();
 	return 0;
  }
