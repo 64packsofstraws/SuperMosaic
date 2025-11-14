@@ -315,9 +315,10 @@ void CPU::tick_components(unsigned mclock)
 void CPU::step()
 {
 #if 0
-	if (PC == 0xA4C7) {
+	if (FULL_PC == 0x816c) {
 		printf("asdas");
 	}
+	// 3835985
 #endif
 
 	opcode = read8(FULL_PC);
@@ -343,8 +344,6 @@ void CPU::nmi()
 	PC = read16(0xFFEA);
 
 	nmi_pending = false;
-	snes->bus.regs.nmitimen &= 0x7F;
-	snes->ppu.set_nmi_enable(false);
 }
 
 void CPU::irq()

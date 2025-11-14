@@ -152,6 +152,8 @@ void PPU::tick(unsigned cycles)
 						}
 
 						if (!(regs.inidisp & 0x80)) internal_oamadd = oam_reload;
+						
+						if (vblank_flag && nmi_enable) snes->cpu.nmi_pending = true;
 
 						snes->dma.hdma_reset();
 					}
@@ -163,8 +165,6 @@ void PPU::tick(unsigned cycles)
 				break;
 
 			case VBLANK:
-				if (vblank_flag && nmi_enable) snes->cpu.nmi_pending = true;
-
 				if (dot >= 341) {
 					dot -= 341;
 					scanline++;
@@ -177,7 +177,6 @@ void PPU::tick(unsigned cycles)
 						dot = 0;
 						scanline = 0;
 						y = scanline - 1;
-						snes->bus.regs.rdnmi &= 0x7F;
 						snes->bus.regs.hvbjoy &= ~0x80;
 
 						regs.stat77 &= ~0x40;
