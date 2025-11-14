@@ -53,9 +53,8 @@ uint8_t Bus::read_regs(uint16_t addr)
 			return 0;
 
 		case 0x4210: {
-			uint8_t tmp = regs.rdnmi ^ (snes->ppu.get_vblank_flag() << 7);
+			uint8_t tmp = (mdr & 0x7F) | (snes->ppu.get_vblank_flag() << 7);
 			snes->ppu.set_vblank_flag(false);
-			regs.rdnmi &= 0x7F;
 			return tmp;
 		}
 
