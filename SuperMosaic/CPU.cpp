@@ -318,7 +318,6 @@ void CPU::step()
 	if (FULL_PC == 0x816c) {
 		printf("asdas");
 	}
-	// 3835985
 #endif
 
 	opcode = read8(FULL_PC);
