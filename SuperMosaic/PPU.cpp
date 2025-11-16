@@ -14,6 +14,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 		bg[i].in_main = false;
 		bg[i].in_sub = false;
 	}
+	num_of_bgs = 4;
 
 	stage = PRE_RENDER;
 

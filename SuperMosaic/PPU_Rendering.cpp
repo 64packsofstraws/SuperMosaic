@@ -203,9 +203,11 @@ void PPU::render_sprites()
 				uint8_t pal_idx = (b4 << 3) | (b3 << 2) | (b2 << 1) | b1;
 
 				if (pal_idx) {
-					linebuf[3 - entry.priority][x].rgb = to_rgb888(cgram[16 * (8 + entry.pal_sel) + pal_idx]);
-					linebuf[3 - entry.priority][x].backdrop = false;
-					linebuf[3 - entry.priority][x].priority = true;
+					uint16_t color = cgram[16 * (8 + entry.pal_sel) + pal_idx];
+
+					linebuf[(3 - entry.priority) % num_of_bgs][x].rgb = to_rgb888(color);
+					linebuf[(3 - entry.priority) % num_of_bgs][x].backdrop = false;
+					linebuf[(3 - entry.priority) % num_of_bgs][x].priority = true;
 				}
 				x++;
 

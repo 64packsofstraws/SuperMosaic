@@ -65,6 +65,8 @@ class PPU
 		bool in_sub;
 	} bg[4];
 
+	int num_of_bgs;
+
 	struct Regs {
 		uint8_t inidisp;
 		uint8_t objsel;

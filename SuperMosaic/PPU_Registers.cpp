@@ -25,6 +25,7 @@ uint8_t PPU::read_reg(uint16_t addr)
 		case 0x2138: {
 			uint8_t tmp = oam[internal_oamadd];
 			internal_oamadd++;
+			internal_oamadd &= 0x21F;
 			mdr = tmp;
 		}
 			break;
@@ -166,40 +167,48 @@ void PPU::write_reg(uint16_t addr, uint8_t val)
 					bg[1].bpp = 2;
 					bg[2].bpp = 2;
 					bg[3].bpp = 2;
+					num_of_bgs = 4;
 					break;
 
 				case 1:
 					bg[0].bpp = 4;
 					bg[1].bpp = 4;
 					bg[2].bpp = 2;
+					num_of_bgs = 3;
 					break;
 
 				case 2:
 					bg[0].bpp = 4;
 					bg[1].bpp = 4;
+					num_of_bgs = 2;
 					break;
 
 				case 3:
 					bg[0].bpp = 8;
 					bg[1].bpp = 4;
+					num_of_bgs = 2;
 					break;
 
 				case 4:
 					bg[0].bpp = 8;
 					bg[1].bpp = 2;
+					num_of_bgs = 2;
 					break;
 
 				case 5:
 					bg[0].bpp = 4;
 					bg[1].bpp = 2;
+					num_of_bgs = 2;
 					break;
 
 				case 6:
 					bg[0].bpp = 4;
+					num_of_bgs = 1;
 					break;
 
 				case 7:
 					bg[0].bpp = 8;
+					num_of_bgs = 1;
 					break;
 			}
 			break;
