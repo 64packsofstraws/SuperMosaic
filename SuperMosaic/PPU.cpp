@@ -35,8 +35,6 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 
 	y = 0;
 
-	SDL_Init(SDL_INIT_VIDEO);
-
 	SDL_CreateWindowAndRenderer("SuperMosaic", 256 * SCALE, 224 * SCALE, 0, &win, &ren);
 	SDL_SetRenderVSync(ren, 2);
 

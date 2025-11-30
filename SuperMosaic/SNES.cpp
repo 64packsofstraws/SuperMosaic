@@ -11,6 +11,8 @@ bool SNES::is_title(std::vector<uint8_t>& rom, uint16_t addr)
 
 SNES::SNES(bool mouse_enabled) : cpu(this), bus(this), ppu(this), dma(this)
 {
+	SDL_Init(SDL_INIT_VIDEO);
+
 	memset(&header, 0, sizeof(header));
 
 	if (mouse_enabled) {
@@ -74,7 +76,7 @@ void SNES::load_file(const char* filename)
 	std::copy(header_it, header_it + 32, reinterpret_cast<uint8_t*>(&header));
 
 	size_t rom_size = (1 << header.rom_size) * 1024;
-	size_t ram_size = (1 << header.ram_size) * 1024;
+	size_t ram_size = !header.ram_size ? 0 : (1 << header.ram_size) * 1024;
 
 	if (rom_size < rom_data.size()) rom_size = rom_data.size();
 
