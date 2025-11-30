@@ -40,6 +40,8 @@ bool LoROM::ram_in_range(uint32_t addr)
 
 uint8_t LoROM::read_ram(uint32_t addr)
 {
+    if (ram.empty()) return 0;
+
     uint8_t bank = ((addr >> 16) & 0xFF) - 0x70;
     uint32_t idx = ((addr & 0xFFFF) + 0x8000 * bank) % ram.size();
     return ram[idx];
@@ -47,6 +49,8 @@ uint8_t LoROM::read_ram(uint32_t addr)
 
 void LoROM::write_ram(uint32_t addr, uint8_t val)
 {
+    if (ram.empty()) return;
+
     uint8_t bank = ((addr >> 16) & 0xFF) - 0x70;
     uint32_t idx = ((addr & 0xFFFF) + 0x8000 * bank) % ram.size();
     ram[idx] = val;
@@ -62,7 +66,7 @@ bool HiROM::in_range(uint32_t addr)
     uint8_t bank = (addr >> 16) & 0xFF;
     uint16_t word = addr & 0xFFFF;
 
-    return (bank >= 0xC0) || (bank <= 0x3F && word >= 0x8000) || (bank >= 0x80 && bank <= 0xBF && word >= 0x8000);
+    return (bank >= 0xC0) || (bank >= 0x40 && bank <= 0x7D) || (bank <= 0x3F && word >= 0x8000) || (bank >= 0x80 && bank <= 0xBF && word >= 0x8000);
 }
 
 uint8_t HiROM::read(uint32_t addr)
@@ -72,13 +76,15 @@ uint8_t HiROM::read(uint32_t addr)
     uint32_t idx = 0;
 
     if (bank >= 0xC0)
-        idx = (addr - 0xC00000) % rom.size();
+        idx = addr - 0xC00000;
+    else if (bank >= 0x40 && bank <= 0x7D)
+        idx = addr - 0x400000;
     else if (bank <= 0x3F && word >= 0x8000)
         idx = word + bank * 0x10000;
     else if (bank >= 0x80 && bank <= 0xBF && word >= 0x8000)
         idx = word + (bank - 0x80) * 0x10000;
 
-    return rom[idx];
+    return rom[idx % rom.size()];
 }
 
 bool HiROM::ram_in_range(uint32_t addr)
@@ -91,6 +97,8 @@ bool HiROM::ram_in_range(uint32_t addr)
 
 uint8_t HiROM::read_ram(uint32_t addr)
 {
+    if (ram.empty()) return 0;
+
     uint8_t bank = ((addr >> 16) & 0xFF) - 0x30;
     uint32_t idx = ((addr & 0xFFFF - 0x6000) + 0x2000 * bank) % ram.size();
     return ram[idx];
@@ -98,6 +106,8 @@ uint8_t HiROM::read_ram(uint32_t addr)
 
 void HiROM::write_ram(uint32_t addr, uint8_t val)
 {
+    if (ram.empty()) return;
+
     uint8_t bank = ((addr >> 16) & 0xFF) - 0x30;
     uint32_t idx = ((addr & 0xFFFF - 0x6000) + 0x2000 * bank) % ram.size();
     ram[idx] = val;
