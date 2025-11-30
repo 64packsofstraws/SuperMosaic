@@ -23,9 +23,8 @@ uint8_t PPU::read_reg(uint16_t addr)
 			break;
 
 		case 0x2138: {
-			uint8_t tmp = oam[internal_oamadd];
+			uint8_t tmp = oam[internal_oamadd & 0x21F];
 			internal_oamadd++;
-			internal_oamadd &= 0x21F;
 			mdr = tmp;
 		}
 			break;
