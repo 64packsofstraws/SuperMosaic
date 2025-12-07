@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 4.1.0)
 
 project("SuperMosaic")
 
-
-set(SDL3_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sdl_cmake)
 find_package(SDL3)
 
 add_executable(SuperMosaic
