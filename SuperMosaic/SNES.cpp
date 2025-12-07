@@ -81,7 +81,7 @@ void SNES::load_file(const char* filename)
 	if (rom_size < rom_data.size()) rom_size = rom_data.size();
 
 	std::vector<uint8_t> rom(rom_size, 0);
-	std::copy_n(rom_data.begin(), rom.size(), rom.begin());
+	std::copy_n(rom_data.begin(), rom_data.size(), rom.begin());
 
 	std::vector<uint8_t> ram(ram_size, 0);
 
@@ -100,6 +100,8 @@ void SNES::load_file(const char* filename)
 void SNES::run()
 {
 	bool running = true;
+	bool paused = false;
+
 	SDL_Event e;
 
 	while (running) {
@@ -112,6 +114,8 @@ void SNES::run()
 				case SDL_EVENT_MOUSE_MOTION:
 				case SDL_EVENT_MOUSE_BUTTON_DOWN:
 				case SDL_EVENT_KEY_DOWN:
+					if (e.key.key == SDLK_P) paused = !paused;
+
 					ctrlr->handle_ctrl_in(e);
 					break;
 
@@ -120,11 +124,13 @@ void SNES::run()
 					ctrlr->handle_ctrl_out(e);
 					break;
 			}
-		}
 
-		while (!ppu.frame_ready)
+			ImGui_ImplSDL3_ProcessEvent(&e);
+		}
+		
+		while (!ppu.frame_ready && !paused)
 			cpu.step();
 
-		ppu.render();
+		ppu.render(paused);
 	}
 }

@@ -4,6 +4,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 
 #define SET_C(c) (c) ? status |= 0x1 : status &= ~0x1;
 #define SET_Z(c) (c) ? status |= 0x2 : status &= ~0x2; 
@@ -34,7 +35,8 @@ class CPU
 	uint16_t Y;
 
 	uint16_t SP;
-
+	uint8_t PBR;
+	uint16_t PC;
 
 	uint16_t D;
 	uint8_t DBR;
@@ -221,8 +223,7 @@ class CPU
 public:
 	bool nmi_pending;
 	bool irq_pending;
-	uint8_t PBR;
-	uint16_t PC;
+
 	CPU(SNES* snes);
 
 	void tick_components(unsigned mclock);
@@ -238,5 +239,15 @@ public:
 
 	uint16_t read16(uint32_t addr);
 	void write16(uint32_t addr, uint16_t val);
+
+	struct CPUState {
+		int A;
+		int X;
+		int Y;
+		int PC;
+		int SP;
+	};
+
+	CPUState get_cpu_state();
 };
 

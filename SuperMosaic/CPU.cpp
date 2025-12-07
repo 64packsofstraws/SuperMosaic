@@ -315,7 +315,7 @@ void CPU::tick_components(unsigned mclock)
 void CPU::step()
 {
 #if 0
-	if (FULL_PC == 0x816c) {
+	if (FULL_PC == 0xa9b2) {
 		printf("asdas");
 	}
 #endif
@@ -385,14 +385,31 @@ void CPU::write8(uint32_t addr, uint8_t val)
 uint16_t CPU::read16(uint32_t addr)
 {
 	uint32_t next_addr = (addr & 0xFF0000) | ((addr + 1) & 0xFFFF);
-	return (read8(next_addr) << 8) | read8(addr);
+
+	uint8_t low = read8(addr);
+	uint8_t high = read8(next_addr);
+
+	return (high << 8) | low;
 }
 
 void CPU::write16(uint32_t addr, uint16_t val)
 {
 	uint32_t next_addr = (addr & 0xFF0000) | ((addr + 1) & 0xFFFF);
-	write8(next_addr, val >> 8);
 	write8(addr, val & 0xFF);
+	write8(next_addr, val >> 8);
+}
+
+CPU::CPUState CPU::get_cpu_state()
+{
+	CPUState tmp = {
+		.A = A,
+		.X = X,
+		.Y = Y,
+		.PC = FULL_PC,
+		.SP = SP
+	};
+
+	return tmp;
 }
 
 void CPU::check_addr_mode()

@@ -2,12 +2,17 @@
 #include <cstdint>
 #include <vector>
 #include <array>
+#include <imgui.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_sdlrenderer3.h>
 #include <SDL3/SDL.h>
 
 #define idx(x, y) (y * 256 + x)
 constexpr int SCALE = 2;
 
 class SNES;
+
+#define private public
 
 class PPU
 {
@@ -167,7 +172,7 @@ class PPU
 	void apply_color_math(uint8_t bgnum, std::array<BufMetadata, 256>& sub_buf);
 	void apply_windows(uint8_t bgnum);
 	void render_windows(uint8_t w_left, uint8_t w_right, bool inverted, std::array<BufMetadata, 256>& buf, uint16_t color);
-	void render_color_windows(uint8_t w_left, uint8_t w_right, std::array<BufMetadata, 256>& buf, bool is_main);
+	
 	void get_active_sprites();
 	void render_sprites();
 
@@ -184,6 +189,8 @@ public:
 	SDL_Window* win;
 	SDL_Renderer* ren;
 	SDL_Texture* tex;
+	SDL_Texture* cgram_tex;
+
 	bool frame_ready;
 
 	PPU(SNES* snes);
@@ -200,6 +207,6 @@ public:
 	void write_reg(uint16_t addr, uint8_t val);
 
 	void tick(unsigned mclock);
-	void render();
+	void render(bool paused);
 };
 

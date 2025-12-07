@@ -35,7 +35,7 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 
 	y = 0;
 
-	SDL_CreateWindowAndRenderer("SuperMosaic", 256 * SCALE, 224 * SCALE, 0, &win, &ren);
+	SDL_CreateWindowAndRenderer("SuperMosaic", 1154, 768, 0, &win, &ren);
 	SDL_SetRenderVSync(ren, 2);
 
 	tex = SDL_CreateTexture(
@@ -47,10 +47,33 @@ PPU::PPU(SNES* snes) : snes(snes), vram(0x8000, 0), cgram(256, 0), framebuf(256 
 	);
 
 	SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+
+	cgram_tex = SDL_CreateTexture(
+		ren,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_STREAMING,
+		16,
+		16
+	);
+
+	SDL_SetTextureScaleMode(cgram_tex, SDL_SCALEMODE_NEAREST);
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+	ImGui_ImplSDL3_InitForSDLRenderer(win, ren);
+	ImGui_ImplSDLRenderer3_Init(ren);
 }
 
 PPU::~PPU()
 {
+	ImGui_ImplSDLRenderer3_Shutdown();
+	ImGui_ImplSDL3_Shutdown();
+	ImGui::DestroyContext();
+	
+	SDL_DestroyTexture(cgram_tex);
 	SDL_DestroyTexture(tex);
 	SDL_DestroyRenderer(ren);
 	SDL_DestroyWindow(win);
@@ -195,11 +218,64 @@ void PPU::tick(unsigned cycles)
 	}
 }
 
-void PPU::render()
+void PPU::render(bool paused)
 {
+	ImGui_ImplSDLRenderer3_NewFrame();
+	ImGui_ImplSDL3_NewFrame();
+	ImGui::NewFrame();
+
+	static auto cpu_state = snes->cpu.get_cpu_state();
+	if (paused) cpu_state = snes->cpu.get_cpu_state();
+
+	ImGui::Begin("CPU");
+	
+	ImGui::Text("A: %04X\nX: %04X\nY: %04X\nPC: %06X", cpu_state.A, cpu_state.X, cpu_state.Y, cpu_state.PC);
+	
+	ImGui::End();
+
+	ImGui::Begin("VRAM");
+
+	for (int i = 0; i < vram.size(); i += 8) {
+		ImGui::Text("%04X:\t\t", i);
+		ImGui::SameLine();
+
+		for (int j = 0; j < 8; j++) {
+			ImGui::Text("%04X ", vram[i + j]);
+			ImGui::SameLine();
+		}
+
+		ImGui::NewLine();
+	}
+
+	ImGui::End();
+
+	ImGui::Begin("Palettes");
+
+	std::array<uint32_t, 16 * 16> buf;
+
+	for (int i = 0; i < buf.size(); i++) {
+		buf[i] = to_rgb888(cgram[i]);
+	}
+
+	SDL_UpdateTexture(cgram_tex, NULL, buf.data(), 16 * sizeof(uint32_t));
+	
+	ImGui::Image((ImTextureID)cgram_tex, ImVec2(256, 256));
+
+	ImGui::End();
+
+	ImGui::Begin("Emulator");
+
+	ImGui::Image((ImTextureID)tex, ImVec2(256 * SCALE, 224 * SCALE));
+	ImGui::End();
+
+	ImGui::Render();
+
 	SDL_UpdateTexture(tex, NULL, framebuf.data(), 256 * sizeof(uint32_t));
+
+	SDL_SetRenderDrawColor(ren, 0x14, 0x14, 0x14, 0xFF);
 	SDL_RenderClear(ren);
-	SDL_RenderTexture(ren, tex, NULL, NULL);
+
+	ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), ren);
 	SDL_RenderPresent(ren);
 
 	frame_ready = false;

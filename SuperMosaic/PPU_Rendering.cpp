@@ -49,43 +49,6 @@ void PPU::render_windows(uint8_t w_left, uint8_t w_right, bool inverted, std::ar
 	}
 }
 
-void PPU::render_color_windows(uint8_t w_left, uint8_t w_right, std::array<BufMetadata, 256>& buf, bool is_main)
-{
-	uint8_t cw_region = regs.cgwsel >> 6 & 0x3;
-
-	if (is_main) {
-		switch (cw_region) {
-			case 1: case 2:
-				render_windows(regs.wh0, regs.wh1, !(regs.wobjsel & 0x10), buf, 0);
-				break;
-
-			case 3:
-				for (int i = 0; i < 256; i++) {
-					buf[i].rgb = to_rgb888(0);
-					buf[i].window_pix = true;
-					buf[i].backdrop = false;
-				}
-		}
-	}
-	else {
-		switch (cw_region) {
-			case 1: case 2:
-				if (regs.wobjsel & 0x10) {
-					for (int i = 0; i < w_left; i++) buf[i].backdrop = true;
-
-					for (int i = w_right + 1; i < 256; i++) buf[i].backdrop = true;
-				}
-				else {
-					for (int i = w_left; i < w_right; i++) buf[i].backdrop = true;
-				}
-				break;
-
-			case 3:
-				for (int i = 0; i < 256; i++) buf[i].backdrop = true;
-		}
-	}
-}
-
 void PPU::get_active_sprites()
 {
 	SpriteEntry entry;
@@ -277,7 +240,6 @@ void PPU::render_scanline()
 	}
 
 	std::array<BufMetadata, 256> sub_buf = mix_linebufs(sub_last_bg);
-	render_color_windows(regs.wh0, regs.wh1, sub_buf, false);
 
 	uint8_t main_last_bg = 0;
 
@@ -300,7 +262,6 @@ void PPU::render_scanline()
 	if (!active_sprites.empty() || regs.tm & 0x10) render_sprites();
 
 	std::array<BufMetadata, 256> main_buf = mix_linebufs(main_last_bg);
-	render_color_windows(regs.wh0, regs.wh1, main_buf, true);	
 
 	for (int x = 0; x < 256; x++) {
 		if (!main_buf[x].backdrop) {
