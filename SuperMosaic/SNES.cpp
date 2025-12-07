@@ -80,7 +80,7 @@ void SNES::load_file(const char* filename)
 
 	if (rom_size < rom_data.size()) rom_size = rom_data.size();
 
-	std::vector<uint8_t> rom(rom_size, 0);
+	std::vector<uint8_t> rom(rom_data.size(), 0);
 	std::copy_n(rom_data.begin(), rom.size(), rom.begin());
 
 	std::vector<uint8_t> ram(ram_size, 0);
