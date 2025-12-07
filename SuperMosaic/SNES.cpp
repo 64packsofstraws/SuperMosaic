@@ -100,6 +100,8 @@ void SNES::load_file(const char* filename)
 void SNES::run()
 {
 	bool running = true;
+	bool paused = false;
+
 	SDL_Event e;
 
 	while (running) {
@@ -112,6 +114,8 @@ void SNES::run()
 				case SDL_EVENT_MOUSE_MOTION:
 				case SDL_EVENT_MOUSE_BUTTON_DOWN:
 				case SDL_EVENT_KEY_DOWN:
+					if (e.key.key == SDLK_P) paused = !paused;
+
 					ctrlr->handle_ctrl_in(e);
 					break;
 
@@ -122,7 +126,7 @@ void SNES::run()
 			}
 		}
 
-		while (!ppu.frame_ready)
+		while (!ppu.frame_ready && !paused)
 			cpu.step();
 
 		ppu.render();

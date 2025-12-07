@@ -5,7 +5,7 @@
 #include <SDL3/SDL.h>
 
 #define idx(x, y) (y * 256 + x)
-constexpr int SCALE = 2;
+constexpr int SCALE = 3;
 
 class SNES;
 
