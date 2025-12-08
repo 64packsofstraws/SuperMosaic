@@ -3,3 +3,5 @@ build/
 SuperMosaic/x64/
 x64/
 SuperMosaic.sln
+*.vcxproj
+*.vcxproj.*
