@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 4.1.0)
 
 project("SuperMosaic")
 
+if(WIN32)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 find_package(SDL3)
 
 add_executable(SuperMosaic
