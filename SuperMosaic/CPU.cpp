@@ -315,7 +315,7 @@ void CPU::tick_components(unsigned mclock)
 void CPU::step()
 {
 #if 0
-	if (FULL_PC == 0x816c) {
+	if (FULL_PC == 0xe008) {
 		printf("asdas");
 	}
 #endif
