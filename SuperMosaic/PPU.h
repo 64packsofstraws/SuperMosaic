@@ -5,7 +5,7 @@
 #include <SDL3/SDL.h>
 
 #define idx(x, y) (y * 256 + x)
-constexpr int SCALE = 3;
+constexpr int SCALE = 2;
 
 class SNES;
 
@@ -167,7 +167,6 @@ class PPU
 	void apply_color_math(uint8_t bgnum, std::array<BufMetadata, 256>& sub_buf);
 	void apply_windows(uint8_t bgnum);
 	void render_windows(uint8_t w_left, uint8_t w_right, bool inverted, std::array<BufMetadata, 256>& buf, uint16_t color);
-	void render_color_windows(uint8_t w_left, uint8_t w_right, std::array<BufMetadata, 256>& buf, bool is_main);
 	void get_active_sprites();
 	void render_sprites();
 
