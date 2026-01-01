@@ -21,7 +21,7 @@ add_executable(SuperMosaic
 	SuperMosaic/Cartridge.cpp
 	SuperMosaic/PPU.cpp
 	SuperMosaic/PPU_Rendering.cpp
-	SuperMosaic/PPU_Rendering.cpp
+	SuperMosaic/PPU_Registers.cpp
 )
 
 target_include_directories(SuperMosaic PUBLIC ${SDL3_INCLUDE_DIRS})
