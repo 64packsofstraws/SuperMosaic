@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <cmath>
+#include <algorithm>
 #include "CPU.h"
 #include "Cartridge.h"
 #include "Bus.h"
