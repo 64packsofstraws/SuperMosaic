@@ -60,7 +60,7 @@ void PPU::get_active_sprites()
 
 	for (int i = 0; i < 512; i += 4) {
 		entry.x = oam[i];
-		entry.y = oam[i + 1];
+		entry.y = oam[i + 1] + 1;
 		entry.tile_addr = oam[i + 2] * 16;
 		uint8_t attr = oam[i + 3];
 
@@ -263,7 +263,7 @@ void PPU::render_scanline()
 	}
 
 	get_active_sprites();
-	if (!active_sprites.empty() || regs.tm & 0x10) render_sprites();
+	if (regs.tm & 0x10) render_sprites();
 
 	std::array<BufMetadata, 256> main_buf = mix_linebufs(main_last_bg);
 
