@@ -125,11 +125,7 @@ void PPU::tick(unsigned cycles)
 							snes->dma.start_hdma_transfer(i);
 					}
 
-					if (scanline >= 1 && scanline <= 224) {
-						render_scanline();
-
-						if (scanline == 224) frame_ready = true;
-					}
+					if (scanline >= 1 && scanline <= 224) render_scanline();
 				}
 				break;
 
@@ -142,6 +138,7 @@ void PPU::tick(unsigned cycles)
 					if (scanline == vblank_scanline) {
 						stage = VBLANK;
 						vblank_flag = true;
+						frame_ready = true;
 						snes->bus.regs.hvbjoy |= 0x80;
 						snes->bus.regs.hvbjoy &= ~0x40;
 

@@ -315,8 +315,8 @@ void CPU::tick_components(unsigned mclock)
 void CPU::step()
 {
 #if 0
-	if (FULL_PC == 0xe008) {
-		printf("asdas");
+	if (PC == 0x8138) {
+		opcode = opcode;
 	}
 #endif
 
@@ -327,7 +327,6 @@ void CPU::step()
 	(this->*ins_table[opcode].ins)();
 
 	if (nmi_pending) nmi();
-
 	if (irq_pending && !GET_I()) irq();
 }
 
